@@ -2,11 +2,20 @@ import PostalMime from "postal-mime";
 
 const PAGE_SIZE = 20;
 const RULES_PAGE_SIZE = 12;
+const SCHEMA_STATEMENTS = [
+  "CREATE TABLE IF NOT EXISTS emails (id INTEGER PRIMARY KEY AUTOINCREMENT, message_id TEXT NOT NULL, from_address TEXT NOT NULL, to_address TEXT NOT NULL, subject TEXT NOT NULL, extracted_json TEXT NOT NULL, received_at INTEGER NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS idx_emails_received_at ON emails (received_at DESC)",
+  "CREATE TABLE IF NOT EXISTS rules (id INTEGER PRIMARY KEY AUTOINCREMENT, remark TEXT, sender_filter TEXT, pattern TEXT NOT NULL, created_at INTEGER NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS whitelist (id INTEGER PRIMARY KEY AUTOINCREMENT, sender_pattern TEXT NOT NULL, created_at INTEGER NOT NULL)"
+];
+
+let schemaReadyPromise = null;
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 export default {
   async email(message, env, ctx) {
+    await ensureSchema(env.DB);
     const now = Date.now();
     const parsed = await parseIncomingEmail(message);
 
@@ -53,6 +62,7 @@ export default {
       if (method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
       if (method !== "GET") return new Response("Method Not Allowed", { status: 405 });
       if (!isApiAuthorized(request, env.API_TOKEN)) return jsonError("Unauthorized", 401);
+      await ensureSchema(env.DB);
       return handleEmailsLatest(url, env);
     }
 
@@ -69,6 +79,7 @@ export default {
       if (!isAdminAuthorized(request, env.ADMIN_TOKEN)) {
         return new Response("Unauthorized", { status: 401 });
       }
+      await ensureSchema(env.DB);
       if (pathname === "/admin/emails" && method === "GET") return handleAdminEmails(url, env);
       if (pathname === "/admin/rules" && method === "GET") return handleAdminRulesGet(url, env);
       if (pathname === "/admin/rules" && method === "POST") return handleAdminRulesPost(request, env);
@@ -82,6 +93,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
+    await ensureSchema(env.DB);
     // 定时器触发：清理超过 48 小时的邮件数据
     // 48 hours = 48 * 60 * 60 * 1000 = 172800000 毫秒
     const expirationTime = Date.now() - 172800000;
@@ -314,6 +326,21 @@ function clampPage(value) {
 function safeParseJson(value) {
   if (typeof value !== "string") return null;
   try { return JSON.parse(value); } catch { return null; }
+}
+
+async function ensureSchema(db) {
+  if (!schemaReadyPromise) {
+    schemaReadyPromise = (async () => {
+      for (const statement of SCHEMA_STATEMENTS) {
+        await db.prepare(statement).run();
+      }
+    })().catch((err) => {
+      schemaReadyPromise = null;
+      console.error("Schema initialization failed:", err);
+      throw err;
+    });
+  }
+  return schemaReadyPromise;
 }
 
 function json(data, status = 200) {
