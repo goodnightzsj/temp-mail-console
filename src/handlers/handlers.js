@@ -29,12 +29,21 @@ export async function handleEmailsLatest(url, db) {
 }
 
 /**
- * [Admin] 获取邮件列表 (带分页)
+ * [Admin] 获取邮件列表 (带分页和域名过滤)
  */
 export async function handleAdminEmails(url, db) {
   const page = clampPage(url.searchParams.get("page"));
-  const { items, total } = await dbActions.getEmails(db, page, PAGE_SIZE);
+  const domain = url.searchParams.get("domain") || null;
+  const { items, total } = await dbActions.getEmails(db, page, PAGE_SIZE, domain);
   return json({ page, pageSize: PAGE_SIZE, total, items });
+}
+
+/**
+ * [Admin] 获取系统中的所有域名
+ */
+export async function handleAdminDomains(url, db) {
+  const domains = await dbActions.getAvailableDomains(db);
+  return json({ domains });
 }
 
 /**

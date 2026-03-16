@@ -71,17 +71,46 @@ export async function getLatestEmail(db, address) {
 }
 
 /**
- * 分页获取邮件记录
+ * 分页获取邮件记录 (支持域名过滤)
  */
-export async function getEmails(db, page, pageSize) {
+export async function getEmails(db, page, pageSize, domain = null) {
   const offset = (page - 1) * pageSize;
+  let query = "SELECT message_id, from_address, to_address, subject, extracted_json, received_at FROM emails";
+  let countQuery = "SELECT COUNT(1) as total FROM emails";
+  const params = [pageSize, offset];
+  const countParams = [];
+
+  if (domain) {
+    const domainPattern = `%@${domain}%`;
+    query += " WHERE to_address LIKE ?";
+    countQuery += " WHERE to_address LIKE ?";
+    params.unshift(domainPattern);
+    countParams.push(domainPattern);
+  }
+
+  query += " ORDER BY received_at DESC LIMIT ? OFFSET ?";
+
   const [list, countRow] = await Promise.all([
-    db.prepare(
-      "SELECT message_id, from_address, to_address, subject, extracted_json, received_at FROM emails ORDER BY received_at DESC LIMIT ? OFFSET ?"
-    ).bind(pageSize, offset).all(),
-    db.prepare("SELECT COUNT(1) as total FROM emails").first()
+    db.prepare(query).bind(...params).all(),
+    db.prepare(countQuery).bind(...countParams).first()
   ]);
   return { items: list.results, total: countRow?.total || 0 };
+}
+
+/**
+ * 获取系统中出现过的所有唯一域名
+ */
+export async function getAvailableDomains(db) {
+  const result = await db.prepare("SELECT to_address FROM emails").all();
+  const domains = new Set();
+  for (const row of result.results) {
+    const addresses = row.to_address.split(",");
+    for (const addr of addresses) {
+      const parts = addr.trim().split("@");
+      if (parts.length === 2) domains.add(parts[1]);
+    }
+  }
+  return Array.from(domains).sort();
 }
 
 /**
