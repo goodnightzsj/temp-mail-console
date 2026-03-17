@@ -1,5 +1,5 @@
-import { PAGE_SIZE, RULES_PAGE_SIZE, CORS_HEADERS, JSON_HEADERS } from "../utils/constants.js";
-import { json, jsonError, clampPage, safeParseJson } from "../utils/utils.js";
+import { PAGE_SIZE, RULES_PAGE_SIZE, MAX_RULE_PATTERN_LENGTH, MAX_RULE_REMARK_LENGTH, MAX_SENDER_FILTER_LENGTH, MAX_SENDER_PATTERN_LENGTH } from "../utils/constants.js";
+import { json, jsonError, clampPage, safeParseJson, readJsonBody } from "../utils/utils.js";
 import * as dbActions from "../core/db.js";
 
 // ─── 路由处理函数 (Route Handlers) ─────────────────────────────────────────────
@@ -14,18 +14,12 @@ export async function handleEmailsLatest(url, db) {
   const row = await dbActions.getLatestEmail(db, address);
   if (!row) return jsonError("message not found", 404);
 
-  return new Response(
-    JSON.stringify({ 
-      code: 200, 
-      data: { 
-        from_address: row.from_address, 
-        to_address: row.to_address, 
-        received_at: row.received_at, 
-        results: safeParseJson(row.extracted_json) || [] 
-      } 
-    }),
-    { headers: { ...JSON_HEADERS, ...CORS_HEADERS } }
-  );
+  return json({
+    from_address: row.from_address,
+    to_address: row.to_address,
+    received_at: row.received_at,
+    results: safeParseJson(row.extracted_json) || []
+  });
 }
 
 /**
@@ -59,13 +53,21 @@ export async function handleAdminRulesGet(url, db) {
  * [Admin] 创建新规则
  */
 export async function handleAdminRulesPost(request, db) {
-  const body = await request.json();
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return jsonError(parsed.error, 400);
+
+  const body = parsed.data || {};
+  const remark = String(body.remark || "").trim();
+  const sender_filter = String(body.sender_filter || "").trim();
   const pattern = String(body.pattern || "").trim();
   if (!pattern) return jsonError("pattern is required", 400);
+  if (pattern.length > MAX_RULE_PATTERN_LENGTH) return jsonError("pattern is too long", 400);
+  if (remark.length > MAX_RULE_REMARK_LENGTH) return jsonError("remark is too long", 400);
+  if (sender_filter.length > MAX_SENDER_FILTER_LENGTH) return jsonError("sender_filter is too long", 400);
 
   await dbActions.createRule(db, {
-    remark: String(body.remark || "").trim(),
-    sender_filter: String(body.sender_filter || "").trim(),
+    remark,
+    sender_filter,
     pattern
   });
   return json({ ok: true });
@@ -94,9 +96,13 @@ export async function handleAdminWhitelistGet(url, db) {
  * [Admin] 添加白名单项
  */
 export async function handleAdminWhitelistPost(request, db) {
-  const body = await request.json();
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return jsonError(parsed.error, 400);
+
+  const body = parsed.data || {};
   const senderPattern = String(body.sender_pattern || "").trim();
   if (!senderPattern) return jsonError("sender_pattern is required", 400);
+  if (senderPattern.length > MAX_SENDER_PATTERN_LENGTH) return jsonError("sender_pattern is too long", 400);
 
   await dbActions.createWhitelistEntry(db, senderPattern);
   return json({ ok: true });

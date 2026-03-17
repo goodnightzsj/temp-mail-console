@@ -1,7 +1,7 @@
 // ─── 认证助手函数 ─────────────────────────────────────────────────────────────
 
 /**
- * 校验管理后台访问权限 (兼容 Admin Token 和 Cookie)
+ * 校验管理后台访问权限（Bearer Token 或 Cookie）
  */
 export function isAdminAuthorized(request, adminToken) {
   if (!adminToken) return false;
@@ -21,17 +21,14 @@ export function isApiAuthorized(request, apiToken) {
 /**
  * 获取请求头中的 Bearer Token
  */
-export function getBearerToken(request) {
+function getBearerToken(request) {
   const header = request.headers.get("Authorization") || "";
   return header.startsWith("Bearer ") ? header.slice(7).trim() : "";
 }
 
-/**
- * 解析 Cookie 字符串
- */
-export function parseCookies(cookieHeader) {
+function parseCookies(cookieHeader) {
   const output = {};
-  for (const part of cookieHeader.split(";")) {
+  for (const part of String(cookieHeader || "").split(";")) {
     const [rawKey, ...rest] = part.trim().split("=");
     if (rawKey) output[rawKey] = decodeURIComponent(rest.join("="));
   }

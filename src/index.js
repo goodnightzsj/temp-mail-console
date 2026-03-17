@@ -1,10 +1,18 @@
-import { PAGE_SIZE, RULES_PAGE_SIZE, HTML_HEADERS } from "./utils/constants.js";
-import { jsonError } from "./utils/utils.js";
+import { PAGE_SIZE, RULES_PAGE_SIZE, HTML_HEADERS, CORS_HEADERS } from "./utils/constants.js";
+import { jsonError, applyCors } from "./utils/utils.js";
 import { isAdminAuthorized, isApiAuthorized } from "./core/auth.js";
 import { ensureSchema, clearExpiredEmails } from "./core/db.js";
 import { processIncomingEmail } from "./core/logic.js";
 import * as handlers from "./handlers/handlers.js";
 import { renderAuthHtml, renderHtml } from "./ui/templates.js";
+
+function apiOptionsResponse() {
+  return new Response(null, { status: 204, headers: { ...CORS_HEADERS } });
+}
+
+function apiJsonError(message, status = 400) {
+  return applyCors(jsonError(message, status), CORS_HEADERS);
+}
 
 export default {
   /**
@@ -12,7 +20,7 @@ export default {
    */
   async email(message, env, ctx) {
     const parsed = await processIncomingEmail(message, env, ctx);
-    
+
     // 如果处理成功（通过白名单）且设置了全局转发
     if (parsed && env.FORWARD_TO) {
       try {
@@ -33,11 +41,12 @@ export default {
 
     // 1. API 路由 (/api/...)
     if (pathname === "/api/emails/latest") {
-      if (method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "Authorization" } });
-      if (method !== "GET") return new Response("Method Not Allowed", { status: 405 });
-      if (!isApiAuthorized(request, env.API_TOKEN)) return jsonError("Unauthorized", 401);
+      if (method === "OPTIONS") return apiOptionsResponse();
+      if (method !== "GET") return apiJsonError("Method Not Allowed", 405);
+      if (!isApiAuthorized(request, env.API_TOKEN)) return apiJsonError("Unauthorized", 401);
       await ensureSchema(env.DB);
-      return handlers.handleEmailsLatest(url, env.DB);
+      const res = await handlers.handleEmailsLatest(url, env.DB);
+      return applyCors(res, CORS_HEADERS);
     }
 
     // 2. 静态页面 (Dashboard)
@@ -52,7 +61,7 @@ export default {
     if (pathname.startsWith("/admin/")) {
       if (!isAdminAuthorized(request, env.ADMIN_TOKEN)) return new Response("Unauthorized", { status: 401 });
       await ensureSchema(env.DB);
-      
+
       // 分发请求
       if (pathname === "/admin/domains" && method === "GET") return handlers.handleAdminDomains(url, env.DB);
       if (pathname === "/admin/emails" && method === "GET") return handlers.handleAdminEmails(url, env.DB);
@@ -64,13 +73,14 @@ export default {
       if (pathname.startsWith("/admin/whitelist/") && method === "DELETE") return handlers.handleAdminWhitelistDelete(pathname, env.DB);
     }
 
+    if (pathname.startsWith("/api/")) return apiJsonError("Not Found", 404);
     return new Response("Not Found", { status: 404 });
   },
 
   /**
    * 定时清理任务
    */
-  async scheduled(event, env, ctx) {
+  async scheduled(_event, env, ctx) {
     await ensureSchema(env.DB);
     ctx.waitUntil(
       clearExpiredEmails(env.DB, 48)

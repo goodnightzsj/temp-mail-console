@@ -1,5 +1,3 @@
-import { JSON_HEADERS } from "./constants.js";
-
 // ─── 通用工具函数 ─────────────────────────────────────────────────────────────
 
 /**
@@ -18,21 +16,36 @@ export function safeParseJson(value) {
 }
 
 /**
+ * 解析 JSON body。
+ * 返回: { ok: true, data } 或 { ok: false, error }
+ */
+export async function readJsonBody(request) {
+  try {
+    const data = await request.json();
+    return { ok: true, data };
+  } catch {
+    return { ok: false, error: "invalid JSON body" };
+  }
+}
+
+/**
+ * 为 Response 添加 CORS 响应头（原地修改）。
+ */
+export function applyCors(response, corsHeaders) {
+  for (const [k, v] of Object.entries(corsHeaders || {})) response.headers.set(k, v);
+  return response;
+}
+
+/**
  * 返回标准 JSON 响应
  */
 export function json(data, status = 200) {
-  return new Response(JSON.stringify({ code: status, data }), {
-    status,
-    headers: JSON_HEADERS
-  });
+  return Response.json({ code: status, data }, { status });
 }
 
 /**
  * 返回 JSON 错误响应
  */
 export function jsonError(message, status) {
-  return new Response(JSON.stringify({ code: status, message }), {
-    status,
-    headers: JSON_HEADERS
-  });
+  return Response.json({ code: status, message }, { status });
 }

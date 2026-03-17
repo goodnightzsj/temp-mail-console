@@ -61,13 +61,15 @@ export async function loadWhitelist(db) {
   const result = await db.prepare("SELECT id, sender_pattern FROM whitelist ORDER BY created_at DESC").all();
   return result.results.map(mapWhitelist);
 }
+
 /**
  * 获取针对特定收件地址的最新邮件记录
  */
 export async function getLatestEmail(db, address) {
+  const addr = String(address || "").trim().toLowerCase();
   return db.prepare(
     "SELECT from_address, to_address, extracted_json, received_at FROM emails WHERE instr(',' || to_address || ',', ',' || ? || ',') > 0 ORDER BY received_at DESC LIMIT 1"
-  ).bind(address).first();
+  ).bind(addr).first();
 }
 
 /**

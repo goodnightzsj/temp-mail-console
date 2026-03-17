@@ -104,8 +104,8 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
               <!-- 域名筛选器 -->
               <div v-if="availableDomains.length > 0" class="flex items-center gap-2 pl-4 border-l border-slate-200 dark:border-white/5">
                 <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">筛选域名</span>
-                <select 
-                  v-model="filterDomain" 
+                <select
+                  v-model="filterDomain"
                   @change="page=1;loadList()"
                   class="bg-transparent text-[11px] font-medium text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer hover:text-indigo-600 dark:hover:text-white transition-colors"
                 >
@@ -264,7 +264,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
             <h2 class="text-sm font-semibold text-slate-900 dark:text-white">API</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">外部集成接口文档，用于第三方系统获取邮件处理结果</p>
           </div>
-          
+
           <div class="p-6 space-y-10">
             <!-- 身份验证 -->
             <div class="space-y-3">
@@ -284,7 +284,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 <h3 class="text-[13px] font-semibold text-slate-700 dark:text-slate-200">获取最新邮件结果</h3>
               </div>
-              
+
               <div class="flex items-center gap-3">
                 <span class="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider">GET</span>
                 <code class="text-[12px] text-slate-600 dark:text-slate-300 font-mono">/api/emails/latest</code>
@@ -552,6 +552,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
         const match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
         return match ? decodeURIComponent(match[1]) : "";
       }
+
     </script>
   </body>
 </html>`;
@@ -616,7 +617,7 @@ export function renderAuthHtml() {
       const error = document.getElementById("admin-error");
       const submit = document.getElementById("admin-submit");
       const themeToggle = document.getElementById("theme-toggle");
-      
+
       if (input) input.focus();
 
       themeToggle.addEventListener("click", () => {
