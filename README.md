@@ -29,9 +29,9 @@
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/beyoug/temp-mail-console)
 
-> 点击上方按钮可全自动 Fork 并在你的 Cloudflare 账户上部署该项目，自动分配 D1 数据库资源。部署后别忘了按下方指南设置必须的环境变量（如 ADMIN_TOKEN 和 API_TOKEN）以及邮件路由。
+> 点击上方按钮可全自动 Fork 并在你的 Cloudflare 账户上部署该项目，自动分配 D1 数据库资源。部署后别忘了按下方指南补充运行时变量（如 `ADMIN_TOKEN` 和 `API_TOKEN`）以及邮件路由。
 
-> 提示：最新版本在首次访问控制台或收到第一封邮件时会自动初始化表结构。如果希望提前手动初始化，可在本地执行 `npx wrangler d1 execute temp-email-db --file=schema.sql`（使用远程 DB）。
+> 提示：当前版本会在部署阶段自动执行 D1 migrations。完成 `ADMIN_TOKEN` / `API_TOKEN` 和邮件路由配置后即可使用。
 
 ---
 
@@ -52,45 +52,64 @@ npx wrangler d1 create temp-email-db
 # 将输出的 database_id 填入 wrangler.toml
 ```
 
-### 3. 初始化表结构
+### 3. 配置 `wrangler.toml`
 
-```bash
-# 本地
-npx wrangler d1 execute temp-email-db --local --file=schema.sql
-
-# 远程（正式部署后）
-npx wrangler d1 execute temp-email-db --file=schema.sql
-```
-
-> 说明：最新版本会在首次请求时自动创建表结构，以上命令可用于手动初始化或重新修复表结构。
-
-### 4. 配置 wrangler.toml
+将上一步创建 D1 数据库返回的 `database_id` 填入 `wrangler.toml`：
 
 ```toml
+name = "temp-email-worker"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "temp-email-db"
-database_id = "your-d1-database-id"   # 替换为实际 ID
-
-[vars]
-ADMIN_TOKEN = "your-admin-token"   # 后台登录密码
-API_TOKEN = "your-api-token"
-
-# [可选] 开启后自动转发原始邮件（该邮箱需在 Cloudflare Email Routing 的 Destination addresses 中完成验证）
-# FORWARD_TO = "your-real@email.com"
+database_id = "your-d1-database-id"
 
 [triggers]
 crons = ["0 * * * *"] # 每小时执行一次，自动清理超过 48 小时的数据库记录
 ```
 
-> ⚠️ 生产环境建议通过 `wrangler secret put` 设置 `ADMIN_TOKEN` 和 `API_TOKEN`，不要写在 `wrangler.toml` 中。
+### 4. 配置运行时变量
+
+以下变量不要写入 `wrangler.toml`，建议按环境分别管理：
+
+- `ADMIN_TOKEN`：必填，后台登录令牌
+- `API_TOKEN`：必填，API 鉴权令牌
+- `FORWARD_TO`：可选，原始邮件转发目标地址
+
+本地开发推荐使用 `.dev.vars`。可复制下面的示例到项目根目录的 `.dev.vars`：
+
+```bash
+ADMIN_TOKEN=dev-admin-token
+API_TOKEN=dev-api-token
+# 可选
+FORWARD_TO=
+```
+
+生产环境推荐使用 Cloudflare Worker 的 **Secrets / Variables**：
+
+> 在项目根目录执行下面的命令，也就是包含 `wrangler.toml` 的目录。Wrangler 会把 secret 写入当前项目对应的 Cloudflare Worker。
+
+```bash
+npx wrangler secret put ADMIN_TOKEN
+npx wrangler secret put API_TOKEN
+
+# 可选：启用原始邮件自动转发时再设置
+npx wrangler secret put FORWARD_TO
+```
+
+> 说明：`ADMIN_TOKEN`、`API_TOKEN` 建议始终使用 secret；`FORWARD_TO` 虽然不是严格敏感信息，但为了保持配置入口统一，也建议按同样方式管理。
 
 ### 5. 本地开发
 
 ```bash
+npm run db:migrate:local
 npm run dev
 # 访问 http://localhost:8787
 ```
+
+> 首次本地启动前请先执行一次本地 migration，确保 D1 表结构已经就绪。
 
 ### 6. 部署
 
@@ -98,39 +117,59 @@ npm run dev
 npm run deploy
 ```
 
+> `npm run deploy` 会先部署 Worker，再自动执行远程 D1 migrations。部署成功后，数据库表结构应当已经可用。
+
 ### 7. 配置邮件路由 (Email Routing)
 
 - 在 Cloudflare 控制台左侧菜单，找到 **Email** -> **Email Routing**
 - 进入 **Routes** 配置页
-- 根据需要配置 **Catch-all address** 或具体的 **Custom addresses** (Destination 均选择 `Send to a Worker`，并选择刚才部署的 `temp-email-worker`)。
+- 根据需要配置 **Catch-all address** 或具体的 **Custom addresses**（Destination 均选择 `Send to a Worker`，并选择刚才部署的 `temp-email-worker`）
 
 > [!IMPORTANT]
 > 当你在 Cloudflare 邮件路由中将动作设置为 **"Send to a Worker"** 时，Cloudflare **不再**会自动将该邮件投递/转发到你原本的个人收件箱。Worker 会完全接管这条邮件的处理权。
-> **如何启用自动转发**：如果你希望 Worker 提取数据的同时，也将原邮件转发到你的真实邮箱，可以通过 `wrangler dev` 环境变量或在 Cloudflare 控制台的该 Worker **Settings -> Variables** 中增加 `FORWARD_TO` 变量，值为你的真实收件箱地址（注意：该接收地址必须是在 Cloudflare Email Routing 中已验证过的 Destination Address）。
+> 如果你希望 Worker 在提取数据的同时继续转发原邮件，请在下方“邮件转发配置”一节中设置 `FORWARD_TO`，并确保目标地址已经在 Cloudflare Email Routing 的 Destination addresses 中完成验证。
+
+### 可选：手动执行 / 修复 D1 migrations
+
+```bash
+# 本地 D1 migration
+npm run db:migrate:local
+
+# 远程 D1 migration
+npm run db:migrate:remote
+```
+
+> 说明：项目不再依赖首次访问时自动建表。只有在你需要单独修复数据库结构，或排查 migration 执行情况时，才需要手动执行上面的命令。
 
 ## 邮件转发配置
 
 1. 在 Cloudflare **Email Routing** 的 **Destination addresses** 中添加并验证你的真实邮箱。
-2. 在 Worker 变量中设置 `FORWARD_TO`：
+2. 在 Worker 运行时变量中设置 `FORWARD_TO`。
 
 ```bash
-# 本地开发（dev）
-FORWARD_TO="your-real@email.com" npm run dev
+# 本地开发：写入 .dev.vars（推荐从 .dev.vars.example 复制）
+FORWARD_TO="your-real@email.com"
 
-# 线上环境（推荐使用 secret）
+# 线上环境：推荐使用 secret，执行后按提示输入邮箱值
 npx wrangler secret put FORWARD_TO
 ```
 
-3. 生产环境也可在 Cloudflare 控制台 Worker **Settings -> Variables** 中添加 `FORWARD_TO`。
+3. 如果你更习惯在 Cloudflare 控制台操作，也可以在 Worker **Settings -> Variables** 中配置它。
 
 > 提示：当 `FORWARD_TO` 为空时不会执行转发，仍会正常入库与规则解析。
 
 ## 管理控制台
 
-- 访问 `https://<your-worker-domain>/`，输入 `ADMIN_TOKEN` 登录。
-- 登录成功后会写入 `admin_token` Cookie；也可以通过 `Authorization: Bearer <ADMIN_TOKEN>` 访问 `/admin/*` 接口。
+- 管理控制台入口：`https://<your-worker-domain>/`
+- 使用 `ADMIN_TOKEN` 登录后台。
+- 管理端相关路由位于 `/admin/*`。
 
-### API 鉴权
+## API 访问
+
+- API 路由位于 `/api/*`。
+- 调用 API 时使用 `API_TOKEN` 进行 Bearer 鉴权。
+
+### API 鉴权请求头
 
 ```
 Authorization: Bearer <API_TOKEN>
@@ -158,7 +197,7 @@ GET /api/emails/latest?address=<email_address>
 }
 ```
 
-### 13. [API 进阶说明] 字段定义
+### API 进阶说明：字段定义
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -210,21 +249,24 @@ curl "http://localhost:8787/api/emails/latest?address=demo@yourdomain.com" \
   -H "Authorization: Bearer dev-api-token"
 ```
 
-## 项目结构 (专业模块化)
+## 项目结构
 
 ```
+├── migrations/
+│   └── 0001_init.sql            # D1 初始表结构 migration
+├── .dev.vars.example            # 本地开发变量示例
 ├── src/
 │   ├── index.js                 # Worker 入口（协调各模块处理事件）
 │   ├── core/
 │   │   ├── auth.js              # 管理员与 API 鉴权校验
-│   │   ├── db.js                # D1 数据库初始化与存取操作
+│   │   ├── db.js                # D1 数据存取操作
 │   │   └── logic.js             # 邮件解析与正则匹配核心业务
 │   ├── handlers/
 │   │   └── handlers.js          # HTTP 路由处理函数集合
 │   ├── ui/
 │   │   └── templates.js         # UI HTML/CSS 模板
 │   └── utils/
-│       ├── constants.js         # 全局常量与 Schema 定义
+│       ├── constants.js         # 全局常量定义
 │       └── utils.js             # 通用 JSON 响应与助手函数
 ├── test/
 │   └── sample.eml               # 本地测试用示例邮件
