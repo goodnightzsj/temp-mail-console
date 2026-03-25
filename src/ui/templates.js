@@ -326,6 +326,20 @@ const APP_STYLE = `
         box-shadow: none;
       }
 
+      .solid-button[disabled] {
+        opacity: 1;
+        color: color-mix(in oklab, var(--muted) 88%, var(--text) 12%);
+        background:
+          linear-gradient(
+            180deg,
+            color-mix(in oklab, var(--panel-strong) 82%, var(--line) 18%),
+            color-mix(in oklab, var(--panel-contrast) 72%, transparent)
+          );
+        border: 1px solid color-mix(in oklab, var(--line-strong) 58%, transparent);
+        box-shadow: inset 0 1px 0 color-mix(in oklab, white 12%, transparent);
+        filter: saturate(0.64);
+      }
+
       .hero {
         display: grid;
         gap: 1rem;
@@ -766,16 +780,103 @@ const APP_STYLE = `
         background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 26%, transparent), color-mix(in oklab, var(--line) 82%, transparent));
       }
 
-      .builtin-grid {
+      .builtin-catalog {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.85rem;
+        gap: 0.95rem;
+        min-width: 0;
       }
 
-      .builtin-card {
-        padding: 1rem;
+      .builtin-catalog-intro {
+        display: grid;
+        gap: 0.72rem;
+      }
+
+      .builtin-scroll {
+        border-radius: 22px;
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
         background:
-          linear-gradient(180deg, color-mix(in oklab, var(--panel) 88%, transparent), color-mix(in oklab, var(--panel-contrast) 54%, transparent));
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 95%, transparent), color-mix(in oklab, var(--panel-strong) 82%, transparent));
+        box-shadow: inset 0 1px 0 color-mix(in oklab, white 12%, transparent);
+        max-height: min(31rem, calc(100vh - 20rem));
+        overflow: auto;
+      }
+
+      .builtin-list {
+        display: grid;
+      }
+
+      .builtin-row {
+        display: grid;
+        gap: 0.72rem;
+        padding: 1rem 1.05rem;
+        border-bottom: 1px solid color-mix(in oklab, var(--line) 72%, transparent);
+        transition: background-color 180ms var(--ease-out);
+      }
+
+      .builtin-row:last-child {
+        border-bottom: 0;
+      }
+
+      .builtin-row:hover {
+        background: color-mix(in oklab, var(--accent) 5%, transparent);
+      }
+
+      .builtin-row-top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.85rem;
+        align-items: start;
+      }
+
+      .builtin-row-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.68rem;
+        min-width: 0;
+      }
+
+      .builtin-key {
+        display: inline-flex;
+        align-items: center;
+        min-height: 1.95rem;
+        padding: 0.36rem 0.7rem;
+        border-radius: 12px;
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        background: color-mix(in oklab, var(--panel-contrast) 72%, transparent);
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .builtin-meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.45rem;
+      }
+
+      .builtin-description {
+        margin-top: -0.05rem;
+      }
+
+      .builtin-pattern {
+        display: block;
+        margin: 0;
+        padding: 0.82rem 0.92rem;
+        border-radius: 14px;
+        border: 1px solid color-mix(in oklab, var(--line) 82%, transparent);
+        background: color-mix(in oklab, var(--panel-contrast) 78%, transparent);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.83rem;
+        line-height: 1.45;
+        color: var(--text);
+        white-space: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
       }
 
       .api-card {
@@ -1173,8 +1274,8 @@ const APP_STYLE = `
           grid-template-columns: 1fr;
         }
 
-        .builtin-grid {
-          grid-template-columns: 1fr;
+        .builtin-scroll {
+          max-height: 28rem;
         }
       }
 
@@ -1195,6 +1296,14 @@ const APP_STYLE = `
 
         .message-grid {
           grid-template-columns: 1fr 1fr;
+        }
+
+        .builtin-row-top {
+          grid-template-columns: 1fr;
+        }
+
+        .builtin-meta {
+          justify-content: flex-start;
         }
 
         .metrics-grid {
@@ -1275,11 +1384,13 @@ function renderAppScript(pageSize, rulesPageSize) {
             rulesPage: 1,
             rulesTotal: 0,
             ruleForm: { remark: "", sender_filter: "", pattern: "" },
+            ruleOriginal: { remark: "", sender_filter: "", pattern: "" },
             editingRuleId: null,
             whitelistItems: [],
             whitelistPage: 1,
             whitelistTotal: 0,
             whitelistForm: { sender_pattern: "" },
+            whitelistOriginal: { sender_pattern: "" },
             editingWhitelistId: null,
             forwardingForm: {
               forwarding_mode: "env",
@@ -1290,6 +1401,12 @@ function renderAppScript(pageSize, rulesPageSize) {
               effective_forward_to: "",
               forwarding_active: false,
               matched_forwarding_available: false
+            },
+            forwardingOriginal: {
+              forwarding_mode: "env",
+              forward_to: "",
+              builtin_rule_mode: "append",
+              forward_payload_mode: "raw"
             },
             adminToken: "",
             adminError: "",
@@ -1336,6 +1453,45 @@ function renderAppScript(pageSize, rulesPageSize) {
           },
           effectiveForwardTarget() {
             return this.forwardingForm.effective_forward_to || "";
+          },
+          isRuleDirty() {
+            return !this.areStatesEqual(this.normalizeRuleForm(this.ruleForm), this.ruleOriginal);
+          },
+          canSaveRule() {
+            return !this.savingRule && Boolean(this.ruleForm.pattern.trim()) && this.isRuleDirty;
+          },
+          ruleSaveLabel() {
+            if (this.savingRule) return "保存中...";
+            if (!this.ruleForm.pattern.trim()) return this.editingRuleId ? "填写正则后保存" : "填写正则后创建";
+            if (!this.isRuleDirty) return this.editingRuleId ? "内容未变更" : "填写内容后创建";
+            return this.editingRuleId ? "更新规则" : "创建规则";
+          },
+          isWhitelistDirty() {
+            return !this.areStatesEqual(this.normalizeWhitelistForm(this.whitelistForm), this.whitelistOriginal);
+          },
+          canSaveWhitelist() {
+            return !this.savingWhitelist && Boolean(this.whitelistForm.sender_pattern.trim()) && this.isWhitelistDirty;
+          },
+          whitelistSaveLabel() {
+            if (this.savingWhitelist) return "保存中...";
+            if (!this.whitelistForm.sender_pattern.trim()) return this.editingWhitelistId ? "填写模式后保存" : "填写模式后创建";
+            if (!this.isWhitelistDirty) return this.editingWhitelistId ? "内容未变更" : "填写内容后创建";
+            return this.editingWhitelistId ? "更新白名单" : "添加白名单";
+          },
+          isForwardingDirty() {
+            return !this.areStatesEqual(this.normalizeForwardingForm(this.forwardingForm), this.forwardingOriginal);
+          },
+          canSaveForwarding() {
+            if (this.savingForwarding || !this.isForwardingDirty) return false;
+            if (this.forwardingForm.forwarding_mode === "custom" && !this.forwardingForm.forward_to.trim()) return false;
+            if (this.forwardingForm.forward_payload_mode === "matched" && !this.forwardingForm.matched_forwarding_available) return false;
+            return true;
+          },
+          forwardingSaveLabel() {
+            if (this.savingForwarding) return "保存中...";
+            if (this.forwardingForm.forwarding_mode === "custom" && !this.forwardingForm.forward_to.trim()) return "填写邮箱后保存";
+            if (!this.isForwardingDirty) return "当前配置已保存";
+            return "保存转发设置";
           }
         },
         mounted() {
@@ -1404,6 +1560,50 @@ function renderAppScript(pageSize, rulesPageSize) {
           },
           adminHeaders() {
             return this.adminToken ? { Authorization: "Bearer " + this.adminToken } : {};
+          },
+          areStatesEqual(left, right) {
+            return JSON.stringify(left) === JSON.stringify(right);
+          },
+          normalizeRuleForm(source = {}) {
+            return {
+              remark: String(source.remark || "").trim(),
+              sender_filter: String(source.sender_filter || "").trim(),
+              pattern: String(source.pattern || "").trim()
+            };
+          },
+          normalizeWhitelistForm(source = {}) {
+            return {
+              sender_pattern: String(source.sender_pattern || "").trim()
+            };
+          },
+          normalizeForwardingForm(source = {}) {
+            return {
+              forwarding_mode: String(source.forwarding_mode || "env").trim() || "env",
+              forward_to: String(source.forward_to || "").trim().toLowerCase(),
+              builtin_rule_mode: String(source.builtin_rule_mode || "append").trim() || "append",
+              forward_payload_mode: String(source.forward_payload_mode || "raw").trim() || "raw"
+            };
+          },
+          buildForwardingForm(source = {}) {
+            return {
+              forwarding_mode: source.forwarding_mode || "env",
+              forward_to: source.forward_to || "",
+              builtin_rule_mode: source.builtin_rule_mode || "append",
+              forward_payload_mode: source.forward_payload_mode || "raw",
+              env_forward_to: source.env_forward_to || "",
+              effective_forward_to: source.effective_forward_to || "",
+              forwarding_active: Boolean(source.forwarding_active),
+              matched_forwarding_available: Boolean(source.matched_forwarding_available)
+            };
+          },
+          updateRuleOriginal(source = this.ruleForm) {
+            this.ruleOriginal = this.normalizeRuleForm(source);
+          },
+          updateWhitelistOriginal(source = this.whitelistForm) {
+            this.whitelistOriginal = this.normalizeWhitelistForm(source);
+          },
+          updateForwardingOriginal(source = this.forwardingForm) {
+            this.forwardingOriginal = this.normalizeForwardingForm(source);
           },
           async requestJson(url, options = {}) {
             try {
@@ -1526,13 +1726,16 @@ function renderAppScript(pageSize, rulesPageSize) {
               sender_filter: rule.sender_filter || "",
               pattern: rule.pattern || ""
             };
+            this.updateRuleOriginal();
             this.setActiveTab("rules");
           },
           resetRuleForm() {
             this.editingRuleId = null;
             this.ruleForm = { remark: "", sender_filter: "", pattern: "" };
+            this.updateRuleOriginal();
           },
           async submitRule() {
+            if (!this.canSaveRule) return;
             if (!this.ruleForm.pattern.trim()) {
               this.showToast("规则未保存", "内容匹配正则不能为空", "error");
               return;
@@ -1586,13 +1789,16 @@ function renderAppScript(pageSize, rulesPageSize) {
           editWhitelist(item) {
             this.editingWhitelistId = item.id;
             this.whitelistForm = { sender_pattern: item.sender_pattern || "" };
+            this.updateWhitelistOriginal();
             this.setActiveTab("whitelist");
           },
           resetWhitelistForm() {
             this.editingWhitelistId = null;
             this.whitelistForm = { sender_pattern: "" };
+            this.updateWhitelistOriginal();
           },
           async submitWhitelist() {
+            if (!this.canSaveWhitelist) return;
             if (!this.whitelistForm.sender_pattern.trim()) {
               this.showToast("白名单未保存", "发件人模式不能为空", "error");
               return;
@@ -1640,18 +1846,11 @@ function renderAppScript(pageSize, rulesPageSize) {
           async loadForwardingSettings() {
             const payload = await this.requestJson("/admin/settings/forwarding");
             if (!payload?.data) return;
-            this.forwardingForm = {
-              forwarding_mode: payload.data.forwarding_mode || "env",
-              forward_to: payload.data.forward_to || "",
-              builtin_rule_mode: payload.data.builtin_rule_mode || "append",
-              forward_payload_mode: payload.data.forward_payload_mode || "raw",
-              env_forward_to: payload.data.env_forward_to || "",
-              effective_forward_to: payload.data.effective_forward_to || "",
-              forwarding_active: Boolean(payload.data.forwarding_active),
-              matched_forwarding_available: Boolean(payload.data.matched_forwarding_available)
-            };
+            this.forwardingForm = this.buildForwardingForm(payload.data);
+            this.updateForwardingOriginal();
           },
           async saveForwardingSettings() {
+            if (!this.canSaveForwarding) return;
             this.savingForwarding = true;
             const payload = await this.requestJson("/admin/settings/forwarding", {
               method: "PUT",
@@ -1665,16 +1864,8 @@ function renderAppScript(pageSize, rulesPageSize) {
             });
             this.savingForwarding = false;
             if (!payload?.data) return;
-            this.forwardingForm = {
-              forwarding_mode: payload.data.forwarding_mode || "env",
-              forward_to: payload.data.forward_to || "",
-              builtin_rule_mode: payload.data.builtin_rule_mode || "append",
-              forward_payload_mode: payload.data.forward_payload_mode || "raw",
-              env_forward_to: payload.data.env_forward_to || "",
-              effective_forward_to: payload.data.effective_forward_to || "",
-              forwarding_active: Boolean(payload.data.forwarding_active),
-              matched_forwarding_available: Boolean(payload.data.matched_forwarding_available)
-            };
+            this.forwardingForm = this.buildForwardingForm(payload.data);
+            this.updateForwardingOriginal();
             this.showToast(
               "邮件策略已保存",
               this.forwardingForm.forwarding_active
@@ -1914,7 +2105,7 @@ ${renderDocumentHead("Temp Mail Console")}
                 </label>
 
                 <div class="form-actions">
-                  <button class="solid-button" :disabled="savingRule" @click="submitRule">{{ savingRule ? "保存中..." : (editingRuleId ? "更新规则" : "创建规则") }}</button>
+                  <button class="solid-button" :disabled="!canSaveRule" :title="ruleSaveLabel" @click="submitRule">{{ ruleSaveLabel }}</button>
                   <button class="ghost-button" v-if="editingRuleId" @click="resetRuleForm">取消编辑</button>
                 </div>
               </div>
@@ -1930,21 +2121,34 @@ ${renderDocumentHead("Temp Mail Console")}
                       <span class="section-note">始终参与提取，不需要手动创建</span>
                     </div>
 
-                    <div class="builtin-grid">
-                      <article v-for="rule in builtinRules" :key="rule.key" class="resource-card builtin-card">
-                        <div class="resource-meta">
-                          <span class="tag positive">内置规则</span>
-                          <span class="tag neutral">{{ rule.key }}</span>
-                          <span class="tag neutral">{{ rule.multiple ? "多命中" : "单命中" }}</span>
-                        </div>
-                        <h4 class="resource-title">{{ rule.remark }}</h4>
-                        <p class="resource-copy">{{ rule.description }}</p>
+                    <div class="builtin-catalog">
+                      <div class="builtin-catalog-intro">
+                        <p class="panel-copy">内置规则目录固定启用，规则再多也只会在这个区域内部滚动，不会继续把整页高度无限拉长。模式标签和正则预览都做成了紧凑清单，深浅色下都会保持足够对比。</p>
                         <div class="tag-cloud">
-                          <span class="tag neutral">匹配源：主题 + 正文</span>
-                          <span class="tag neutral">发件人：全部</span>
+                          <span class="tag positive">主题 + 正文</span>
+                          <span class="tag neutral">始终启用</span>
+                          <span class="tag neutral">超出后内部滚动</span>
                         </div>
-                        <div class="code-block">{{ rule.pattern }}</div>
-                      </article>
+                      </div>
+
+                      <div class="builtin-scroll">
+                        <div class="builtin-list">
+                          <article v-for="rule in builtinRules" :key="rule.key" class="builtin-row">
+                            <div class="builtin-row-top">
+                              <div class="builtin-row-title">
+                                <span class="builtin-key">{{ rule.key }}</span>
+                                <h4 class="resource-title">{{ rule.remark }}</h4>
+                              </div>
+                              <div class="builtin-meta">
+                                <span class="tag positive">内置</span>
+                                <span class="tag neutral">{{ rule.multiple ? "多命中" : "单命中" }}</span>
+                              </div>
+                            </div>
+                            <p class="resource-copy builtin-description">{{ rule.description }}</p>
+                            <code class="builtin-pattern" :title="rule.pattern">{{ rule.pattern }}</code>
+                          </article>
+                        </div>
+                      </div>
                     </div>
                   </section>
 
@@ -2018,7 +2222,7 @@ ${renderDocumentHead("Temp Mail Console")}
                 </label>
 
                 <div class="form-actions">
-                  <button class="solid-button" :disabled="savingWhitelist" @click="submitWhitelist">{{ savingWhitelist ? "保存中..." : (editingWhitelistId ? "更新白名单" : "添加白名单") }}</button>
+                  <button class="solid-button" :disabled="!canSaveWhitelist" :title="whitelistSaveLabel" @click="submitWhitelist">{{ whitelistSaveLabel }}</button>
                   <button class="ghost-button" v-if="editingWhitelistId" @click="resetWhitelistForm">取消编辑</button>
                 </div>
               </div>
@@ -2142,7 +2346,7 @@ ${renderDocumentHead("Temp Mail Console")}
                 </div>
 
                 <div class="form-actions">
-                  <button class="solid-button" :disabled="savingForwarding" @click="saveForwardingSettings">{{ savingForwarding ? "保存中..." : "保存转发设置" }}</button>
+                  <button class="solid-button" :disabled="!canSaveForwarding" :title="forwardingSaveLabel" @click="saveForwardingSettings">{{ forwardingSaveLabel }}</button>
                 </div>
               </div>
 
