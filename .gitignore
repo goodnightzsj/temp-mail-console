@@ -12,5 +12,7 @@ tmp/
 .ace-tool/
 .claude/
 .ai/
+.llm/
 .codex-tasks/
 .impeccable.md
+llmdoc/
