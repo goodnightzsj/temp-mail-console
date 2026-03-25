@@ -10,5 +10,7 @@ coverage/
 tmp/
 .idea/
 .ace-tool/
+.claude/
+.ai/
 .codex-tasks/
 .impeccable.md

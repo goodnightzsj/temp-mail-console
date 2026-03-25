@@ -1,7 +1,5 @@
 // ─── 数据库操作与状态管理 ───────────────────────────────────────────────────
-/**
- * 格式化规则对象
- */
+
 function mapRule(row) {
   return {
     id: Number(row.id),
@@ -12,9 +10,6 @@ function mapRule(row) {
   };
 }
 
-/**
- * 格式化白名单对象
- */
 function mapWhitelist(row) {
   return {
     id: Number(row.id),
@@ -27,62 +22,126 @@ function mapSettings(row) {
   return {
     forwarding_mode: String(row.forwarding_mode || "env"),
     forward_to: row.forward_to ? String(row.forward_to) : "",
+    builtin_rule_mode: String(row.builtin_rule_mode || "append"),
+    forward_payload_mode: String(row.forward_payload_mode || "raw"),
     updated_at: row.updated_at ? Number(row.updated_at) : 0
   };
 }
 
+function mapEmailRow(row) {
+  return {
+    message_id: String(row.message_id),
+    from_address: String(row.from_address),
+    to_address: String(row.to_address),
+    subject: String(row.subject || ""),
+    content_summary: row.content_summary ? String(row.content_summary) : "",
+    extracted_json: row.extracted_json ? String(row.extracted_json) : "[]",
+    received_at: row.received_at ? Number(row.received_at) : 0
+  };
+}
+
+function buildRemarkNeedle(remark) {
+  const normalized = String(remark || "").trim().toLowerCase();
+  return normalized ? `\n${normalized}\n` : "";
+}
+
+function buildMatchedRemarksIndex(matches) {
+  const uniqueRemarks = Array.from(
+    new Set(
+      (Array.isArray(matches) ? matches : [])
+        .map((item) => String(item?.remark || "").trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+  return uniqueRemarks.length > 0 ? `\n${uniqueRemarks.join("\n")}\n` : "";
+}
+
 async function ensureSettingsRow(db) {
   await db.prepare(
-    "INSERT OR IGNORE INTO settings (id, forwarding_mode, forward_to, updated_at) VALUES (1, 'env', NULL, ?)"
+    "INSERT OR IGNORE INTO settings (id, forwarding_mode, forward_to, builtin_rule_mode, forward_payload_mode, updated_at) VALUES (1, 'env', NULL, 'append', 'raw', ?)"
   ).bind(Date.now()).run();
 }
 
-/**
- * 获取所有解析规则 (供逻辑层使用)
- */
+function buildAddressFilter(address, filters, params) {
+  const normalized = String(address || "").trim().toLowerCase();
+  filters.push("instr(',' || to_address || ',', ',' || ? || ',') > 0");
+  params.push(normalized);
+}
+
+function buildApiEmailFilters({ address, since = null, remark = null }) {
+  const filters = [];
+  const params = [];
+
+  buildAddressFilter(address, filters, params);
+
+  if (Number.isFinite(since) && since >= 0) {
+    filters.push("received_at >= ?");
+    params.push(Math.floor(since));
+  }
+
+  const remarkNeedle = buildRemarkNeedle(remark);
+  if (remarkNeedle) {
+    filters.push("matched_remarks LIKE ?");
+    params.push(`%${remarkNeedle}%`);
+  }
+
+  return { filters, params };
+}
+
 export async function loadRules(db) {
   const result = await db.prepare("SELECT id, remark, sender_filter, pattern FROM rules ORDER BY created_at DESC").all();
   return result.results.map(mapRule);
 }
 
-/**
- * 获取所有发件人白名单 (供逻辑层使用)
- */
 export async function loadWhitelist(db) {
   const result = await db.prepare("SELECT id, sender_pattern FROM whitelist ORDER BY created_at DESC").all();
   return result.results.map(mapWhitelist);
 }
 
-/**
- * 获取针对特定收件地址的最新邮件记录
- */
-export async function getLatestEmail(db, address) {
-  const addr = String(address || "").trim().toLowerCase();
-  return db.prepare(
-    "SELECT from_address, to_address, extracted_json, received_at FROM emails WHERE instr(',' || to_address || ',', ',' || ? || ',') > 0 ORDER BY received_at DESC LIMIT 1"
-  ).bind(addr).first();
+export async function getLatestEmail(db, { address, since = null, remark = null }) {
+  const { items } = await listEmailsForApi(db, { address, since, remark, limit: 1 });
+  return items[0] || null;
 }
 
-/**
- * 分页获取邮件记录 (支持域名过滤)
- */
+export async function listEmailsForApi(db, { address, since = null, remark = null, limit = 20 }) {
+  const { filters, params } = buildApiEmailFilters({ address, since, remark });
+  const whereClause = ` WHERE ${filters.join(" AND ")}`;
+  const listQuery = `
+    SELECT message_id, from_address, to_address, subject, content_summary, extracted_json, received_at
+    FROM emails
+    ${whereClause}
+    ORDER BY received_at DESC
+    LIMIT ?
+  `;
+  const countQuery = `SELECT COUNT(1) AS total FROM emails${whereClause}`;
+
+  const [list, countRow] = await Promise.all([
+    db.prepare(listQuery).bind(...params, limit).all(),
+    db.prepare(countQuery).bind(...params).first()
+  ]);
+
+  return {
+    items: list.results.map(mapEmailRow),
+    total: Number(countRow?.total || 0)
+  };
+}
+
 export async function getEmails(db, page, pageSize, domain = null, search = null) {
   const offset = (page - 1) * pageSize;
-  let listQuery = "SELECT message_id, from_address, to_address, subject, extracted_json, received_at FROM emails";
+  let listQuery = "SELECT message_id, from_address, to_address, subject, content_summary, extracted_json, received_at FROM emails";
   let countQuery = "SELECT COUNT(1) as total FROM emails";
   const filters = [];
   const bindParams = [];
 
   if (domain) {
-    const domainPattern = `%@${domain}%`;
     filters.push("to_address LIKE ?");
-    bindParams.push(domainPattern);
+    bindParams.push(`%@${domain}%`);
   }
 
   if (search) {
     const textPattern = `%${search}%`;
-    filters.push("(subject LIKE ? OR from_address LIKE ? OR to_address LIKE ? OR extracted_json LIKE ?)");
-    bindParams.push(textPattern, textPattern, textPattern, textPattern);
+    filters.push("(subject LIKE ? OR from_address LIKE ? OR to_address LIKE ? OR content_summary LIKE ? OR extracted_json LIKE ? OR matched_remarks LIKE ?)");
+    bindParams.push(textPattern, textPattern, textPattern, textPattern, textPattern, textPattern);
   }
 
   if (filters.length > 0) {
@@ -93,34 +152,31 @@ export async function getEmails(db, page, pageSize, domain = null, search = null
 
   listQuery += " ORDER BY received_at DESC LIMIT ? OFFSET ?";
   const params = [...bindParams, pageSize, offset];
-  const countParams = [...bindParams];
 
   const [list, countRow] = await Promise.all([
     db.prepare(listQuery).bind(...params).all(),
-    db.prepare(countQuery).bind(...countParams).first()
+    db.prepare(countQuery).bind(...bindParams).first()
   ]);
-  return { items: list.results, total: countRow?.total || 0 };
+
+  return {
+    items: list.results.map(mapEmailRow),
+    total: Number(countRow?.total || 0)
+  };
 }
 
-/**
- * 获取系统中出现过的所有唯一域名
- */
 export async function getAvailableDomains(db) {
   const result = await db.prepare("SELECT to_address FROM emails").all();
   const domains = new Set();
   for (const row of result.results) {
-    const addresses = row.to_address.split(",");
+    const addresses = String(row.to_address || "").split(",");
     for (const addr of addresses) {
       const parts = addr.trim().split("@");
-      if (parts.length === 2) domains.add(parts[1]);
+      if (parts.length === 2 && parts[1]) domains.add(parts[1]);
     }
   }
   return Array.from(domains).sort();
 }
 
-/**
- * 分页获取规则列表
- */
 export async function getRulesPaged(db, page, pageSize) {
   const offset = (page - 1) * pageSize;
   const [list, countRow] = await Promise.all([
@@ -129,12 +185,9 @@ export async function getRulesPaged(db, page, pageSize) {
     ).bind(pageSize, offset).all(),
     db.prepare("SELECT COUNT(1) as total FROM rules").first()
   ]);
-  return { items: list.results.map(mapRule), total: countRow?.total || 0 };
+  return { items: list.results.map(mapRule), total: Number(countRow?.total || 0) };
 }
 
-/**
- * 创建新规则
- */
 export async function createRule(db, { remark, sender_filter, pattern }) {
   return db.prepare("INSERT INTO rules (remark, sender_filter, pattern, created_at) VALUES (?, ?, ?, ?)")
     .bind(remark || null, sender_filter || null, pattern, Date.now())
@@ -147,16 +200,10 @@ export async function updateRule(db, id, { remark, sender_filter, pattern }) {
     .run();
 }
 
-/**
- * 删除规则
- */
 export async function deleteRule(db, id) {
   return db.prepare("DELETE FROM rules WHERE id = ?").bind(id).run();
 }
 
-/**
- * 分页获取白名单
- */
 export async function getWhitelistPaged(db, page, pageSize) {
   const offset = (page - 1) * pageSize;
   const [list, countRow] = await Promise.all([
@@ -165,12 +212,9 @@ export async function getWhitelistPaged(db, page, pageSize) {
     ).bind(pageSize, offset).all(),
     db.prepare("SELECT COUNT(1) as total FROM whitelist").first()
   ]);
-  return { items: list.results.map(mapWhitelist), total: countRow?.total || 0 };
+  return { items: list.results.map(mapWhitelist), total: Number(countRow?.total || 0) };
 }
 
-/**
- * 创建白名单项
- */
 export async function createWhitelistEntry(db, pattern) {
   return db.prepare("INSERT INTO whitelist (sender_pattern, created_at) VALUES (?, ?)")
     .bind(pattern, Date.now())
@@ -183,32 +227,26 @@ export async function updateWhitelistEntry(db, id, pattern) {
     .run();
 }
 
-/**
- * 删除白名单项
- */
 export async function deleteWhitelistEntry(db, id) {
   return db.prepare("DELETE FROM whitelist WHERE id = ?").bind(id).run();
 }
-/**
- * 存储处理过的邮件记录
- */
+
 export async function saveEmail(db, data) {
-  const { from, to, subject, matches } = data;
+  const { from, to, subject, content_summary, matches } = data;
   return db.prepare(
-    "INSERT INTO emails (message_id, from_address, to_address, subject, extracted_json, received_at) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO emails (message_id, from_address, to_address, subject, content_summary, matched_remarks, extracted_json, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
   ).bind(
     crypto.randomUUID(),
     from,
     to.join(","),
     subject,
-    JSON.stringify(matches),
+    content_summary || "",
+    buildMatchedRemarksIndex(matches),
+    JSON.stringify(Array.isArray(matches) ? matches : []),
     Date.now()
   ).run();
 }
 
-/**
- * 清理指定小时数之前的过期邮件
- */
 export async function clearExpiredEmails(db, maxHours = 48) {
   const threshold = Date.now() - (maxHours * 60 * 60 * 1000);
   return db.prepare("DELETE FROM emails WHERE received_at < ?").bind(threshold).run();
@@ -216,15 +254,29 @@ export async function clearExpiredEmails(db, maxHours = 48) {
 
 export async function getForwardingSettings(db) {
   await ensureSettingsRow(db);
-  const row = await db.prepare("SELECT forwarding_mode, forward_to, updated_at FROM settings WHERE id = 1").first();
-  return row ? mapSettings(row) : { forwarding_mode: "env", forward_to: "", updated_at: 0 };
+  const row = await db.prepare(
+    "SELECT forwarding_mode, forward_to, builtin_rule_mode, forward_payload_mode, updated_at FROM settings WHERE id = 1"
+  ).first();
+  return row ? mapSettings(row) : {
+    forwarding_mode: "env",
+    forward_to: "",
+    builtin_rule_mode: "append",
+    forward_payload_mode: "raw",
+    updated_at: 0
+  };
 }
 
-export async function updateForwardingSettings(db, { forwarding_mode, forward_to }) {
+export async function updateForwardingSettings(db, { forwarding_mode, forward_to, builtin_rule_mode, forward_payload_mode }) {
   await ensureSettingsRow(db);
-  return db.prepare("UPDATE settings SET forwarding_mode = ?, forward_to = ?, updated_at = ? WHERE id = 1")
-    .bind(forwarding_mode, forward_to || null, Date.now())
-    .run();
+  return db.prepare(
+    "UPDATE settings SET forwarding_mode = ?, forward_to = ?, builtin_rule_mode = ?, forward_payload_mode = ?, updated_at = ? WHERE id = 1"
+  ).bind(
+    forwarding_mode,
+    forward_to || null,
+    builtin_rule_mode || "append",
+    forward_payload_mode || "raw",
+    Date.now()
+  ).run();
 }
 
 export function resolveEffectiveForwardTarget(settings, envForwardTo = "") {

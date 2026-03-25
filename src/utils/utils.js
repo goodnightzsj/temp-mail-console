@@ -19,6 +19,33 @@ export function normalizeText(value, maxLength = 200) {
   return String(value || "").trim().slice(0, maxLength);
 }
 
+export function normalizeWhitespace(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function summarizeText(value, maxLength = 320) {
+  const normalized = normalizeWhitespace(value);
+  if (normalized.length <= maxLength) return normalized;
+  return normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd() + "…";
+}
+
+export function stripHtml(value) {
+  return normalizeWhitespace(
+    String(value || "")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, "\"")
+      .replace(/&#39;/gi, "'")
+  );
+}
+
 export function isValidEmailAddress(value) {
   const email = String(value || "").trim().toLowerCase();
   if (!email || email.length > 254) return false;
@@ -39,6 +66,25 @@ export function splitPatternList(value) {
     .split(/[,\n]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+export function parseSinceValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (/^\d{10,16}$/.test(raw)) {
+    let parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    if (raw.length === 10) parsed *= 1000;
+    return Math.floor(parsed);
+  }
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+export function clampLimit(value, defaultValue = 20, maxValue = 50) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return defaultValue;
+  return Math.min(maxValue, Math.floor(parsed));
 }
 
 /**

@@ -124,6 +124,15 @@ const APP_STYLE = `
         font: inherit;
       }
 
+      input,
+      textarea,
+      select {
+        user-select: text;
+        -webkit-user-select: text;
+        pointer-events: auto;
+        -webkit-touch-callout: default;
+      }
+
       button {
         cursor: pointer;
       }
@@ -188,11 +197,12 @@ const APP_STYLE = `
 
       .brand-title {
         font-family: var(--display);
-        font-size: clamp(2rem, 4vw, 3.4rem);
-        line-height: 0.92;
+        font-size: clamp(2rem, 3.7vw, 3.25rem);
+        line-height: 0.98;
         letter-spacing: -0.04em;
         margin: 0;
         font-weight: 600;
+        text-wrap: balance;
       }
 
       .brand-kicker,
@@ -257,6 +267,8 @@ const APP_STYLE = `
       .soft-button,
       .tab-button,
       .chip-button {
+        position: relative;
+        z-index: 2;
         border: 0;
         border-radius: 999px;
         padding: 0.82rem 1.12rem;
@@ -353,17 +365,26 @@ const APP_STYLE = `
 
       .hero-copy-panel {
         display: grid;
-        gap: 1rem;
+        gap: 1.15rem;
         min-height: 17.5rem;
       }
 
       .hero-title {
         margin: 0;
         font-family: var(--display);
-        font-size: clamp(2.3rem, 4vw, 4.4rem);
-        line-height: 0.92;
-        letter-spacing: -0.05em;
-        max-width: 12ch;
+        font-size: clamp(2rem, 3.4vw, 3.55rem);
+        line-height: 1.08;
+        letter-spacing: -0.045em;
+        max-width: 15ch;
+        text-wrap: balance;
+      }
+
+      .hero-break {
+        display: block;
+      }
+
+      .hero-accent {
+        color: color-mix(in oklab, var(--accent) 82%, var(--teal) 18%);
       }
 
       .hero-note {
@@ -470,6 +491,8 @@ const APP_STYLE = `
         margin: 0;
         font-size: 1.14rem;
         font-weight: 700;
+        line-height: 1.2;
+        text-wrap: balance;
       }
 
       .panel-subtitle {
@@ -477,6 +500,7 @@ const APP_STYLE = `
         color: var(--muted);
         max-width: 44rem;
         line-height: 1.6;
+        overflow-wrap: anywhere;
       }
 
       .toolbar {
@@ -509,6 +533,8 @@ const APP_STYLE = `
       .field-input,
       .field-select,
       .field-textarea {
+        position: relative;
+        z-index: 2;
         width: 100%;
         border-radius: 16px;
         border: 1px solid var(--line);
@@ -603,7 +629,16 @@ const APP_STYLE = `
         margin: 0;
         font-size: 1.05rem;
         font-weight: 700;
-        line-height: 1.35;
+        line-height: 1.45;
+        text-wrap: balance;
+      }
+
+      .subject-copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+        max-width: 68ch;
+        overflow-wrap: anywhere;
       }
 
       .message-grid {
@@ -706,22 +741,86 @@ const APP_STYLE = `
         padding: 1.2rem;
       }
 
+      .rule-sections {
+        display: grid;
+        gap: 1.1rem;
+      }
+
+      .rule-section {
+        display: grid;
+        gap: 0.95rem;
+      }
+
+      .section-head {
+        align-items: center;
+      }
+
+      .section-note {
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .section-divider {
+        height: 1px;
+        background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 26%, transparent), color-mix(in oklab, var(--line) 82%, transparent));
+      }
+
+      .builtin-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      .builtin-card {
+        padding: 1rem;
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 88%, transparent), color-mix(in oklab, var(--panel-contrast) 54%, transparent));
+      }
+
+      .api-card {
+        display: grid;
+        gap: 1rem;
+        padding: 1.2rem;
+        align-content: start;
+      }
+
+      .api-section {
+        display: grid;
+        gap: 0.72rem;
+        min-width: 0;
+      }
+
+      .api-divider {
+        height: 1px;
+        width: 100%;
+        background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 24%, transparent), color-mix(in oklab, var(--line) 78%, transparent));
+      }
+
       .resource-card {
         padding: 1rem;
         display: grid;
         gap: 0.75rem;
       }
 
+      .compact-empty {
+        min-height: 12rem;
+        padding-inline: 0;
+      }
+
       .resource-title {
         margin: 0;
         font-weight: 700;
         font-size: 1rem;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
       }
 
       .resource-copy {
         margin: 0;
         color: var(--muted);
         line-height: 1.65;
+        overflow-wrap: anywhere;
       }
 
       .tag-cloud {
@@ -772,30 +871,48 @@ const APP_STYLE = `
       .mode-switch {
         display: inline-flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
-        padding: 0.4rem;
-        border-radius: 999px;
+        gap: 0.35rem;
+        padding: 0.34rem;
+        border-radius: 18px;
         border: 1px solid var(--line);
-        background: color-mix(in oklab, var(--panel) 88%, transparent);
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 92%, transparent), color-mix(in oklab, var(--panel-contrast) 60%, transparent));
+        box-shadow: inset 0 1px 0 color-mix(in oklab, white 18%, transparent);
       }
 
       .mode-option {
+        position: relative;
+        z-index: 2;
         border: 0;
-        border-radius: 999px;
-        padding: 0.7rem 1rem;
+        border-radius: 12px;
+        padding: 0.72rem 0.96rem;
         color: var(--muted);
         background: transparent;
         font-weight: 700;
+        letter-spacing: -0.01em;
         transition:
           background-color 180ms var(--ease-out),
           color 180ms var(--ease-out),
-          transform 180ms var(--ease-out);
+          transform 180ms var(--ease-out),
+          box-shadow 180ms var(--ease-out);
       }
 
       .mode-option.active {
         color: white;
-        background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 84%, white 16%), color-mix(in oklab, var(--teal) 45%, var(--accent) 55%));
-        box-shadow: 0 14px 24px color-mix(in oklab, var(--accent) 18%, transparent);
+        background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 82%, white 18%), color-mix(in oklab, var(--teal) 38%, var(--accent) 62%));
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.18),
+          0 10px 18px color-mix(in oklab, var(--accent) 16%, transparent);
+      }
+
+      .mode-option[disabled] {
+        opacity: 0.42;
+        cursor: not-allowed;
+      }
+
+      .mode-option[disabled]:hover,
+      .mode-option[disabled]:active {
+        transform: none;
       }
 
       .code-block {
@@ -808,6 +925,21 @@ const APP_STYLE = `
         line-height: 1.7;
         border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
         background: color-mix(in oklab, var(--panel-contrast) 80%, transparent);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .result-context {
+        display: grid;
+        gap: 0.28rem;
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.55;
+      }
+
+      .result-context .mono {
+        display: inline;
       }
 
       .inline-alert {
@@ -896,9 +1028,10 @@ const APP_STYLE = `
         margin: 0;
         font-family: var(--display);
         font-size: clamp(2.5rem, 6vw, 4.9rem);
-        line-height: 0.9;
+        line-height: 0.96;
         letter-spacing: -0.05em;
         max-width: 10ch;
+        text-wrap: balance;
       }
 
       .auth-card-content {
@@ -908,6 +1041,8 @@ const APP_STYLE = `
       }
 
       .auth-form {
+        position: relative;
+        z-index: 2;
         display: grid;
         gap: 1rem;
       }
@@ -919,6 +1054,7 @@ const APP_STYLE = `
         align-items: center;
         color: var(--muted);
         font-size: 0.88rem;
+        flex-wrap: wrap;
       }
 
       .list-head {
@@ -958,6 +1094,29 @@ const APP_STYLE = `
 
       .key-point strong {
         font-size: 0.94rem;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .brand-subtitle,
+      .panel-copy,
+      .microcopy,
+      .metric-copy,
+      .mini-pill,
+      .field-label {
+        overflow-wrap: anywhere;
+      }
+
+      .panel-head > div,
+      .list-head > div,
+      .collection-card,
+      .form-card,
+      .api-card,
+      .resource-card,
+      .metric-card,
+      .chrome-actions,
+      .auth-foot {
+        min-width: 0;
       }
 
       .auth-error {
@@ -1011,6 +1170,10 @@ const APP_STYLE = `
         .settings-grid,
         .api-grid,
         .auth-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .builtin-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -1108,6 +1271,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             filterDomain: "",
             availableDomains: [],
             rules: [],
+            builtinRules: [],
             rulesPage: 1,
             rulesTotal: 0,
             ruleForm: { remark: "", sender_filter: "", pattern: "" },
@@ -1120,9 +1284,12 @@ function renderAppScript(pageSize, rulesPageSize) {
             forwardingForm: {
               forwarding_mode: "env",
               forward_to: "",
+              builtin_rule_mode: "append",
+              forward_payload_mode: "raw",
               env_forward_to: "",
               effective_forward_to: "",
-              forwarding_active: false
+              forwarding_active: false,
+              matched_forwarding_available: false
             },
             adminToken: "",
             adminError: "",
@@ -1147,6 +1314,9 @@ function renderAppScript(pageSize, rulesPageSize) {
           rulesTotalPages() {
             return Math.max(1, Math.ceil(this.rulesTotal / ${rulesPageSize}));
           },
+          totalRuleInventory() {
+            return this.rulesTotal + this.builtinRules.length;
+          },
           whitelistTotalPages() {
             return Math.max(1, Math.ceil(this.whitelistTotal / ${rulesPageSize}));
           },
@@ -1154,6 +1324,15 @@ function renderAppScript(pageSize, rulesPageSize) {
             if (this.forwardingForm.forwarding_mode === "custom") return "自定义邮箱";
             if (this.forwardingForm.forwarding_mode === "disabled") return "已停用";
             return "跟随部署默认值";
+          },
+          builtinRuleModeLabel() {
+            if (this.forwardingForm.builtin_rule_mode === "builtin_only") return "只用内置规则";
+            if (this.forwardingForm.builtin_rule_mode === "custom_only") return "只用自定义规则";
+            return "内置 + 自定义";
+          },
+          forwardPayloadModeLabel() {
+            if (this.forwardingForm.forward_payload_mode === "matched") return "命中摘要邮件";
+            return "原始邮件";
           },
           effectiveForwardTarget() {
             return this.forwardingForm.effective_forward_to || "";
@@ -1306,6 +1485,14 @@ function renderAppScript(pageSize, rulesPageSize) {
               return raw || "";
             }
           },
+          resultKey(result, index) {
+            return [
+              result?.rule_id ?? "builtin",
+              result?.rule_key ?? "custom",
+              result?.value ?? "",
+              index
+            ].join("-");
+          },
           async copyContent(text) {
             try {
               await navigator.clipboard.writeText(text);
@@ -1330,6 +1517,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             if (!payload?.data) return;
             this.rules = payload.data.items || [];
             this.rulesTotal = payload.data.total || 0;
+            this.builtinRules = payload.data.builtin_items || [];
           },
           editRule(rule) {
             this.editingRuleId = rule.id;
@@ -1455,9 +1643,12 @@ function renderAppScript(pageSize, rulesPageSize) {
             this.forwardingForm = {
               forwarding_mode: payload.data.forwarding_mode || "env",
               forward_to: payload.data.forward_to || "",
+              builtin_rule_mode: payload.data.builtin_rule_mode || "append",
+              forward_payload_mode: payload.data.forward_payload_mode || "raw",
               env_forward_to: payload.data.env_forward_to || "",
               effective_forward_to: payload.data.effective_forward_to || "",
-              forwarding_active: Boolean(payload.data.forwarding_active)
+              forwarding_active: Boolean(payload.data.forwarding_active),
+              matched_forwarding_available: Boolean(payload.data.matched_forwarding_available)
             };
           },
           async saveForwardingSettings() {
@@ -1467,7 +1658,9 @@ function renderAppScript(pageSize, rulesPageSize) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 forwarding_mode: this.forwardingForm.forwarding_mode,
-                forward_to: this.forwardingForm.forward_to
+                forward_to: this.forwardingForm.forward_to,
+                builtin_rule_mode: this.forwardingForm.builtin_rule_mode,
+                forward_payload_mode: this.forwardingForm.forward_payload_mode
               })
             });
             this.savingForwarding = false;
@@ -1475,11 +1668,19 @@ function renderAppScript(pageSize, rulesPageSize) {
             this.forwardingForm = {
               forwarding_mode: payload.data.forwarding_mode || "env",
               forward_to: payload.data.forward_to || "",
+              builtin_rule_mode: payload.data.builtin_rule_mode || "append",
+              forward_payload_mode: payload.data.forward_payload_mode || "raw",
               env_forward_to: payload.data.env_forward_to || "",
               effective_forward_to: payload.data.effective_forward_to || "",
-              forwarding_active: Boolean(payload.data.forwarding_active)
+              forwarding_active: Boolean(payload.data.forwarding_active),
+              matched_forwarding_available: Boolean(payload.data.matched_forwarding_available)
             };
-            this.showToast("转发设置已保存", this.forwardingForm.forwarding_active ? "新的原始邮件会按当前配置继续转发" : "后续邮件将不再自动转发");
+            this.showToast(
+              "邮件策略已保存",
+              this.forwardingForm.forwarding_active
+                ? ("新的" + this.forwardPayloadModeLabel + "会继续按当前地址转发，提取策略也已同步更新")
+                : "转发状态与内置规则策略都已保存"
+            );
           }
         }
       }).mount("#app");
@@ -1523,11 +1724,13 @@ ${renderDocumentHead("Temp Mail Console")}
           <article class="hero-copy-panel">
             <div>
               <div class="eyebrow">Operational Briefing</div>
-              <h2 class="hero-title">让收件、提取、转发和巡检变成一条短路径。</h2>
+              <h2 class="hero-title">让收件、提取、转发与巡检<span class="hero-break">收束成一条<span class="hero-accent">更短的路径</span>。</span></h2>
             </div>
             <p class="panel-copy">所有页面围绕“快速判断”和“即时调整”设计：邮件是否命中、规则是否正确、白名单是否放行、转发是否生效，都应该在一个视图内得到答案。</p>
             <div class="hero-note">
               <span class="mini-pill">{{ forwardingForm.forwarding_active ? "转发已启用" : "转发未启用" }}</span>
+              <span class="mini-pill">转发内容：{{ forwardPayloadModeLabel }}</span>
+              <span class="mini-pill">提取策略：{{ builtinRuleModeLabel }}</span>
               <span class="mini-pill">{{ filterDomain ? "正在筛选域名：" + filterDomain : "当前查看全部域名" }}</span>
               <span class="mini-pill">{{ searchQuery ? "搜索：" + searchQuery : "支持按主题 / 发件人 / 收件人 / 结果搜索" }}</span>
             </div>
@@ -1546,8 +1749,8 @@ ${renderDocumentHead("Temp Mail Console")}
               </div>
               <div class="metric-card">
                 <div class="metric-label">Rules</div>
-                <div class="metric-value">{{ rulesTotal }}</div>
-                <div class="metric-copy">可用提取规则，支持创建与更新</div>
+                <div class="metric-value">{{ totalRuleInventory }}</div>
+                <div class="metric-copy">内置 + 自定义规则总量，命中策略一眼可见</div>
               </div>
               <div class="metric-card">
                 <div class="metric-label">Allowlist</div>
@@ -1627,6 +1830,7 @@ ${renderDocumentHead("Temp Mail Console")}
                       <div><strong>接收时间</strong><br />{{ formatTime(item.received_at) }}</div>
                       <div><strong>状态</strong><br />{{ item._expanded ? "收起详情" : "展开详情" }}</div>
                     </div>
+                    <p class="subject-copy" v-if="item.content_summary">{{ item.content_summary }}</p>
                   </button>
 
                   <div v-if="item._expanded" class="message-details">
@@ -1639,9 +1843,18 @@ ${renderDocumentHead("Temp Mail Console")}
                         <button class="chip-button" @click="copyContent(formatResult(item.extracted_json))">复制 JSON</button>
                       </div>
                       <div class="result-list">
-                        <div class="result-item" v-for="result in parseResults(item.extracted_json)" :key="result.rule_id + '-' + result.value">
-                          <strong>{{ result.remark || ('规则 #' + result.rule_id) }}</strong>
+                        <div class="result-item" v-for="(result, index) in parseResults(item.extracted_json)" :key="resultKey(result, index)">
+                          <strong>{{ result.remark || (result.rule_id ? ('规则 #' + result.rule_id) : '未命名命中') }}</strong>
+                          <div class="tag-cloud">
+                            <span class="tag neutral">{{ result.source === "builtin" ? "内置规则" : "自定义规则" }}</span>
+                            <span class="tag neutral" v-if="result.rule_key">{{ result.rule_key }}</span>
+                          </div>
                           <div class="mono">{{ result.value }}</div>
+                          <div class="result-context" v-if="result.before || result.after">
+                            <div v-if="result.before"><strong>Before</strong> <span class="mono">{{ result.before }}</span></div>
+                            <div><strong>Match</strong> <span class="mono">{{ result.match || result.value }}</span></div>
+                            <div v-if="result.after"><strong>After</strong> <span class="mono">{{ result.after }}</span></div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1668,11 +1881,12 @@ ${renderDocumentHead("Temp Mail Console")}
             <div class="panel-head">
               <div>
                 <h3 class="panel-title">规则控制台</h3>
-                <p class="panel-subtitle">规则现在支持创建、查看、更新和删除。创建前会校验正则合法性，避免无效表达式被写入后在运行时静默跳过。</p>
+                <p class="panel-subtitle">这里会同时展示系统内置规则和你手动维护的自定义规则。创建前会校验正则合法性，避免无效表达式被写入后在运行时静默跳过。</p>
               </div>
               <div class="stat-line">
-                <span>第 {{ rulesPage }} / {{ rulesTotalPages }} 页</span>
-                <span>总计 {{ rulesTotal }} 条</span>
+                <span>内置 {{ builtinRules.length }} 条</span>
+                <span>自定义第 {{ rulesPage }} / {{ rulesTotalPages }} 页</span>
+                <span>总计 {{ totalRuleInventory }} 条</span>
               </div>
             </div>
 
@@ -1706,38 +1920,71 @@ ${renderDocumentHead("Temp Mail Console")}
               </div>
 
               <div class="collection-card">
-                <div class="list-head">
-                  <div>
-                    <div class="eyebrow">Rule Inventory</div>
-                    <h4 class="panel-title">现有规则</h4>
-                  </div>
-                  <div class="pager">
-                    <button class="ghost-button" :disabled="rulesPage === 1" @click="prevRulesPage">上一页</button>
-                    <button class="ghost-button" :disabled="rulesPage >= rulesTotalPages" @click="nextRulesPage">下一页</button>
-                  </div>
-                </div>
-
-                <div v-if="rules.length === 0" class="empty-state">
-                  <div class="eyebrow">No Rules</div>
-                  <h4 class="empty-title">还没有提取规则。</h4>
-                  <p class="empty-copy">先创建一条正则，让系统能从邮件正文里抓到验证码、注册链接或其它关键信息。</p>
-                </div>
-
-                <div v-else class="rules-feed">
-                  <article v-for="rule in rules" :key="rule.id" class="resource-card">
-                    <div class="resource-meta">
-                      <span class="tag attention">规则 #{{ rule.id }}</span>
-                      <span class="tag" v-if="rule.sender_filter">定向发件人</span>
-                      <span class="tag neutral" v-else>作用于全部发件人</span>
+                <div class="rule-sections">
+                  <section class="rule-section">
+                    <div class="list-head section-head">
+                      <div>
+                        <div class="eyebrow">System Catalog</div>
+                        <h4 class="panel-title">内置规则</h4>
+                      </div>
+                      <span class="section-note">始终参与提取，不需要手动创建</span>
                     </div>
-                    <h4 class="resource-title">{{ rule.remark || "未命名规则" }}</h4>
-                    <p class="resource-copy"><strong>发件人：</strong>{{ rule.sender_filter || "全部发件人" }}</p>
-                    <div class="code-block">{{ rule.pattern }}</div>
-                    <div class="inline-actions">
-                      <button class="soft-button" @click="editRule(rule)">编辑</button>
-                      <button class="ghost-button" @click="deleteRule(rule.id)">删除</button>
+
+                    <div class="builtin-grid">
+                      <article v-for="rule in builtinRules" :key="rule.key" class="resource-card builtin-card">
+                        <div class="resource-meta">
+                          <span class="tag positive">内置规则</span>
+                          <span class="tag neutral">{{ rule.key }}</span>
+                          <span class="tag neutral">{{ rule.multiple ? "多命中" : "单命中" }}</span>
+                        </div>
+                        <h4 class="resource-title">{{ rule.remark }}</h4>
+                        <p class="resource-copy">{{ rule.description }}</p>
+                        <div class="tag-cloud">
+                          <span class="tag neutral">匹配源：主题 + 正文</span>
+                          <span class="tag neutral">发件人：全部</span>
+                        </div>
+                        <div class="code-block">{{ rule.pattern }}</div>
+                      </article>
                     </div>
-                  </article>
+                  </section>
+
+                  <div class="section-divider"></div>
+
+                  <section class="rule-section">
+                    <div class="list-head section-head">
+                      <div>
+                        <div class="eyebrow">Rule Inventory</div>
+                        <h4 class="panel-title">自定义规则</h4>
+                      </div>
+                      <div class="pager">
+                        <button class="ghost-button" :disabled="rulesPage === 1" @click="prevRulesPage">上一页</button>
+                        <button class="ghost-button" :disabled="rulesPage >= rulesTotalPages" @click="nextRulesPage">下一页</button>
+                      </div>
+                    </div>
+
+                    <div v-if="rules.length === 0" class="empty-state compact-empty">
+                      <div class="eyebrow">No Custom Rules</div>
+                      <h4 class="empty-title">内置规则已就绪，自定义规则还没开始。</h4>
+                      <p class="empty-copy">上面的内置规则已经会直接参与提取。这里为空只代表你还没有额外补充业务专用正则，例如某个平台的特定验证码或邀请链接格式。</p>
+                    </div>
+
+                    <div v-else class="rules-feed">
+                      <article v-for="rule in rules" :key="rule.id" class="resource-card">
+                        <div class="resource-meta">
+                          <span class="tag attention">规则 #{{ rule.id }}</span>
+                          <span class="tag" v-if="rule.sender_filter">定向发件人</span>
+                          <span class="tag neutral" v-else>作用于全部发件人</span>
+                        </div>
+                        <h4 class="resource-title">{{ rule.remark || "未命名规则" }}</h4>
+                        <p class="resource-copy"><strong>发件人：</strong>{{ rule.sender_filter || "全部发件人" }}</p>
+                        <div class="code-block">{{ rule.pattern }}</div>
+                        <div class="inline-actions">
+                          <button class="soft-button" @click="editRule(rule)">编辑</button>
+                          <button class="ghost-button" @click="deleteRule(rule.id)">删除</button>
+                        </div>
+                      </article>
+                    </div>
+                  </section>
                 </div>
               </div>
             </div>
@@ -1817,11 +2064,13 @@ ${renderDocumentHead("Temp Mail Console")}
           <article class="panel">
             <div class="panel-head">
               <div>
-                <h3 class="panel-title">原始邮件转发设置</h3>
-                <p class="panel-subtitle">新增的设置页支持在不改部署配置的情况下切换转发模式。你可以继续使用部署时的 <code>FORWARD_TO</code>，也可以在后台改成一个 QQ 邮箱地址，或者直接停用转发。</p>
+                <h3 class="panel-title">原始邮件转发与提取策略</h3>
+                <p class="panel-subtitle">默认仍然转发原始邮件；如果当前环境启用了 <code>SEND_EMAIL</code> binding，也可以切到命中摘要邮件。同时这里可以控制系统是只用自定义规则、只用内置规则，还是把两者一起参与提取。你可以继续使用部署时的 <code>FORWARD_TO</code>，也可以在后台改成一个 QQ 邮箱地址，或者直接停用转发。</p>
               </div>
               <div class="stat-line">
                 <span>{{ forwardingModeLabel }}</span>
+                <span>{{ forwardPayloadModeLabel }}</span>
+                <span>{{ builtinRuleModeLabel }}</span>
                 <span>{{ forwardingForm.forwarding_active ? "已生效" : "未生效" }}</span>
               </div>
             </div>
@@ -1845,6 +2094,23 @@ ${renderDocumentHead("Temp Mail Console")}
                   <input class="field-input" v-model="forwardingForm.forward_to" :disabled="forwardingForm.forwarding_mode !== 'custom'" placeholder="例如：123456789@qq.com" />
                 </label>
 
+                <div>
+                  <span class="field-label">内置规则策略</span>
+                  <div class="mode-switch" role="tablist" aria-label="内置规则策略">
+                    <button class="mode-option" :class="{ active: forwardingForm.builtin_rule_mode === 'append' }" @click="forwardingForm.builtin_rule_mode = 'append'">内置 + 自定义</button>
+                    <button class="mode-option" :class="{ active: forwardingForm.builtin_rule_mode === 'builtin_only' }" @click="forwardingForm.builtin_rule_mode = 'builtin_only'">只用内置规则</button>
+                    <button class="mode-option" :class="{ active: forwardingForm.builtin_rule_mode === 'custom_only' }" @click="forwardingForm.builtin_rule_mode = 'custom_only'">只用自定义规则</button>
+                  </div>
+                </div>
+
+                <div>
+                  <span class="field-label">转发内容</span>
+                  <div class="mode-switch" role="tablist" aria-label="转发内容">
+                    <button class="mode-option" :class="{ active: forwardingForm.forward_payload_mode === 'raw' }" @click="forwardingForm.forward_payload_mode = 'raw'">原始邮件</button>
+                    <button class="mode-option" :class="{ active: forwardingForm.forward_payload_mode === 'matched' }" :disabled="!forwardingForm.matched_forwarding_available" @click="forwardingForm.forward_payload_mode = 'matched'">命中摘要邮件</button>
+                  </div>
+                </div>
+
                 <div class="status-shell">
                   <div class="field-label">当前解析结果</div>
                   <div class="key-points">
@@ -1859,6 +2125,18 @@ ${renderDocumentHead("Temp Mail Console")}
                     <div class="key-point">
                       <strong>QQ 邮箱提示</strong>
                       <span class="microcopy">先到 Cloudflare Email Routing 验证 QQ 地址，再在这里保存；只有通过白名单的邮件会继续转发。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>当前提取策略</strong>
+                      <span class="microcopy">{{ builtinRuleModeLabel }}。内置规则默认覆盖数字、英文+数字、连字符代码、链接和封禁邮件；匹配源会同时包含主题与正文。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>当前转发内容</strong>
+                      <span class="microcopy">{{ forwardPayloadModeLabel }}。默认继续转发完整原始邮件；如果启用命中摘要邮件，则会改为发送一封结构化摘要。</span>
+                    </div>
+                    <div class="key-point" v-if="!forwardingForm.matched_forwarding_available">
+                      <strong>摘要转发暂不可用</strong>
+                      <span class="microcopy">需要在 Worker 中配置 <code>SEND_EMAIL</code> binding 后，才能把命中摘要作为一封新邮件发送出去。</span>
                     </div>
                   </div>
                 </div>
@@ -1894,6 +2172,18 @@ ${renderDocumentHead("Temp Mail Console")}
                     <strong>转发失败不会阻断入库</strong>
                     <span class="microcopy">即使 Cloudflare 拒绝转发，邮件仍会照常解析并写入 D1，方便继续排查。</span>
                   </div>
+                  <div class="key-point">
+                    <strong>默认仍然转发原始邮件</strong>
+                    <span class="microcopy">默认配置仍然是原始邮件；只有在当前环境支持并且你手动切到“命中摘要邮件”时，转发内容才会改成结构化摘要。</span>
+                  </div>
+                  <div class="key-point">
+                    <strong>摘要转发需要额外发送能力</strong>
+                    <span class="microcopy">当你切到“命中摘要邮件”时，Worker 会用 <code>SEND_EMAIL</code> binding 构造一封摘要邮件发送到目标邮箱，而不是调用原始的 <code>message.forward()</code>。</span>
+                  </div>
+                  <div class="key-point">
+                    <strong>内置规则可作为兜底</strong>
+                    <span class="microcopy">当你还没配自定义规则时，系统也能直接尝试抓纯数字、英文数字组合、连字符代码、链接和封禁 / 停用通知。</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1905,79 +2195,129 @@ ${renderDocumentHead("Temp Mail Console")}
             <div class="panel-head">
               <div>
                 <h3 class="panel-title">公开 API 速览</h3>
-                <p class="panel-subtitle">当前公开接口保持简单：传入收件地址，取回最近一封邮件的命中结果。这个页签更强调“复制即用”，适合给自动化脚本和外部系统对接。</p>
+                <p class="panel-subtitle">公开 API 现在同时支持“最新一条”与“列表查询”。你可以按收件地址、起始时间和命中备注筛选，并拿到主题、内容摘要和命中前后上下文。</p>
               </div>
             </div>
 
             <div class="api-grid">
               <div class="api-card">
-                <div class="list-head">
-                  <div>
-                    <div class="eyebrow">Auth</div>
-                    <h4 class="panel-title">Bearer 鉴权</h4>
+                <section class="api-section">
+                  <div class="list-head">
+                    <div>
+                      <div class="eyebrow">Auth</div>
+                      <h4 class="panel-title">Bearer 鉴权</h4>
+                    </div>
                   </div>
-                </div>
-                <pre class="code-block">Authorization: Bearer &lt;API_TOKEN&gt;</pre>
+                  <pre class="code-block">Authorization: Bearer &lt;API_TOKEN&gt;</pre>
+                </section>
 
-                <div class="list-head">
-                  <div>
-                    <div class="eyebrow">Request</div>
-                    <h4 class="panel-title">查询最新命中结果</h4>
-                  </div>
-                </div>
-                <pre class="code-block">GET /api/emails/latest?address=target@example.com</pre>
+                <div class="api-divider"></div>
 
-                <div class="list-head">
-                  <div>
-                    <div class="eyebrow">Query</div>
-                    <h4 class="panel-title">参数定义</h4>
+                <section class="api-section">
+                  <div class="list-head">
+                    <div>
+                      <div class="eyebrow">Request</div>
+                      <h4 class="panel-title">查询最新命中结果</h4>
+                    </div>
                   </div>
-                </div>
-                <div class="key-points">
-                  <div class="key-point">
-                    <strong>address</strong>
-                    <span class="microcopy">必填。要查询的收件人邮箱地址，系统会返回最近一封匹配到该地址的邮件结果。</span>
+                  <pre class="code-block">GET /api/emails/latest?address=target@example.com&remark=链接&since=2026-03-26T00:00:00.000Z</pre>
+                </section>
+
+                <section class="api-section">
+                  <div class="list-head">
+                    <div>
+                      <div class="eyebrow">List</div>
+                      <h4 class="panel-title">按条件拉取邮件列表</h4>
+                    </div>
                   </div>
-                </div>
+                  <pre class="code-block">GET /api/emails?address=target@example.com&remark=数字&since=1742947200000&limit=20</pre>
+                </section>
+
+                <div class="api-divider"></div>
+
+                <section class="api-section">
+                  <div class="list-head">
+                    <div>
+                      <div class="eyebrow">Query</div>
+                      <h4 class="panel-title">参数定义</h4>
+                    </div>
+                  </div>
+                  <div class="key-points">
+                    <div class="key-point">
+                      <strong>address</strong>
+                      <span class="microcopy">必填。要查询的收件人邮箱地址，公开 API 仍然默认按收件地址做隔离。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>since</strong>
+                      <span class="microcopy">可选。支持 13 位毫秒时间戳或 ISO 时间，用来限制只看某个时刻之后收到的邮件。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>remark</strong>
+                      <span class="microcopy">可选。按命中备注过滤，例如“数字”“链接”“封禁邮件”“验证码”。命中列表会被同步裁剪成同 remark 的结果。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>limit</strong>
+                      <span class="microcopy">仅列表接口可选，默认 20，最大 50。</span>
+                    </div>
+                  </div>
+                </section>
               </div>
 
               <div class="api-card">
-                <div class="list-head">
-                  <div>
-                    <div class="eyebrow">Response</div>
-                    <h4 class="panel-title">返回体示例</h4>
+                <section class="api-section">
+                  <div class="list-head">
+                    <div>
+                      <div class="eyebrow">Response</div>
+                      <h4 class="panel-title">返回体示例</h4>
+                    </div>
                   </div>
-                </div>
-                <pre class="code-block">{
+                  <pre class="code-block">{
   "code": 200,
   "data": {
+    "message_id": "4f9c...",
     "from_address": "noreply@example.com",
     "to_address": "demo@your-domain.com",
+    "subject": "Your sign-in code",
+    "content_summary": "Use code 123456 to continue. Visit https://example.com/verify if needed.",
     "received_at": 1741881600000,
     "results": [
       {
-        "rule_id": 1,
+        "rule_id": null,
+        "rule_key": "builtin_digits",
+        "source": "builtin",
+        "remark": "数字",
         "value": "123456",
-        "remark": "验证码"
+        "match": "123456",
+        "before": "Use code",
+        "after": "to continue."
       }
     ]
   }
 }</pre>
+                </section>
 
-                <div class="key-points">
-                  <div class="key-point">
-                    <strong>from_address / to_address</strong>
-                    <span class="microcopy">邮件基础元数据，方便对接系统判断来源与目的地。</span>
+                <div class="api-divider"></div>
+
+                <section class="api-section">
+                  <div class="key-points">
+                    <div class="key-point">
+                      <strong>subject / content_summary</strong>
+                      <span class="microcopy">不返回整封原文，但会暴露足够短的主题和正文摘要，方便业务侧做进一步判断。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>before / match / after</strong>
+                      <span class="microcopy">每条命中结果都带上下文片段，方便调用方在不存整封邮件的情况下判断是不是目标验证码或链接。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>source / rule_key</strong>
+                      <span class="microcopy">可区分命中来自内置规则还是自定义规则。内置规则默认包含数字、英文+数字、连字符代码、链接和封禁邮件。</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>完整请求示例</strong>
+                      <span class="microcopy">仓库里有 <code>API_REQUEST_EXAMPLES.md</code>，包含 cURL、JavaScript 和 Python 可直接复制的调用方式。</span>
+                    </div>
                   </div>
-                  <div class="key-point">
-                    <strong>received_at</strong>
-                    <span class="microcopy">13 位毫秒时间戳，适合脚本直接排序或做超时判断。</span>
-                  </div>
-                  <div class="key-point">
-                    <strong>results</strong>
-                    <span class="microcopy">命中结果数组。每项包含规则 ID、实际提取值和备注名称。</span>
-                  </div>
-                </div>
+                </section>
               </div>
             </div>
           </article>

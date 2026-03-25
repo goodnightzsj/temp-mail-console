@@ -11,6 +11,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
+    "mimetext": "^3.0.28",
     "postal-mime": "^2.4.2"
   },
   "devDependencies": {
