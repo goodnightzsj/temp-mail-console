@@ -1,6 +1,35 @@
-import { PAGE_SIZE, RULES_PAGE_SIZE, MAX_RULE_PATTERN_LENGTH, MAX_RULE_REMARK_LENGTH, MAX_SENDER_FILTER_LENGTH, MAX_SENDER_PATTERN_LENGTH } from "../utils/constants.js";
-import { json, jsonError, clampPage, safeParseJson, readJsonBody } from "../utils/utils.js";
+import {
+  PAGE_SIZE,
+  RULES_PAGE_SIZE,
+  MAX_RULE_PATTERN_LENGTH,
+  MAX_RULE_REMARK_LENGTH,
+  MAX_SENDER_FILTER_LENGTH,
+  MAX_SENDER_PATTERN_LENGTH,
+  MAX_FORWARD_ADDRESS_LENGTH,
+  MAX_EMAIL_QUERY_LENGTH
+} from "../utils/constants.js";
+import {
+  json,
+  jsonError,
+  clampPage,
+  safeParseJson,
+  readJsonBody,
+  normalizeText,
+  isValidEmailAddress,
+  isValidRegexPattern,
+  splitPatternList
+} from "../utils/utils.js";
 import * as dbActions from "../core/db.js";
+
+const FORWARDING_MODES = new Set(["env", "custom", "disabled"]);
+
+function hasDbChanges(result) {
+  return Number(result?.meta?.changes || 0) > 0;
+}
+
+function hasInvalidPatternList(input) {
+  return splitPatternList(input).some((pattern) => !isValidRegexPattern(pattern, "i"));
+}
 
 // ─── 路由处理函数 (Route Handlers) ─────────────────────────────────────────────
 
@@ -28,8 +57,9 @@ export async function handleEmailsLatest(url, db) {
 export async function handleAdminEmails(url, db) {
   const page = clampPage(url.searchParams.get("page"));
   const domain = url.searchParams.get("domain") || null;
-  const { items, total } = await dbActions.getEmails(db, page, PAGE_SIZE, domain);
-  return json({ page, pageSize: PAGE_SIZE, total, items });
+  const search = normalizeText(url.searchParams.get("q"), MAX_EMAIL_QUERY_LENGTH);
+  const { items, total } = await dbActions.getEmails(db, page, PAGE_SIZE, domain, search || null);
+  return json({ page, pageSize: PAGE_SIZE, total, items, q: search });
 }
 
 /**
@@ -64,6 +94,8 @@ export async function handleAdminRulesPost(request, db) {
   if (pattern.length > MAX_RULE_PATTERN_LENGTH) return jsonError("pattern is too long", 400);
   if (remark.length > MAX_RULE_REMARK_LENGTH) return jsonError("remark is too long", 400);
   if (sender_filter.length > MAX_SENDER_FILTER_LENGTH) return jsonError("sender_filter is too long", 400);
+  if (!isValidRegexPattern(pattern, "m")) return jsonError("pattern is not a valid regular expression", 400);
+  if (hasInvalidPatternList(sender_filter)) return jsonError("sender_filter contains an invalid regular expression", 400);
 
   await dbActions.createRule(db, {
     remark,
@@ -73,13 +105,37 @@ export async function handleAdminRulesPost(request, db) {
   return json({ ok: true });
 }
 
+export async function handleAdminRulesPut(pathname, request, db) {
+  const id = Number(pathname.replace("/admin/rules/", ""));
+  if (!Number.isFinite(id)) return jsonError("invalid rule id", 400);
+
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return jsonError(parsed.error, 400);
+
+  const body = parsed.data || {};
+  const remark = String(body.remark || "").trim();
+  const sender_filter = String(body.sender_filter || "").trim();
+  const pattern = String(body.pattern || "").trim();
+  if (!pattern) return jsonError("pattern is required", 400);
+  if (pattern.length > MAX_RULE_PATTERN_LENGTH) return jsonError("pattern is too long", 400);
+  if (remark.length > MAX_RULE_REMARK_LENGTH) return jsonError("remark is too long", 400);
+  if (sender_filter.length > MAX_SENDER_FILTER_LENGTH) return jsonError("sender_filter is too long", 400);
+  if (!isValidRegexPattern(pattern, "m")) return jsonError("pattern is not a valid regular expression", 400);
+  if (hasInvalidPatternList(sender_filter)) return jsonError("sender_filter contains an invalid regular expression", 400);
+
+  const result = await dbActions.updateRule(db, id, { remark, sender_filter, pattern });
+  if (!hasDbChanges(result)) return jsonError("rule not found", 404);
+  return json({ ok: true });
+}
+
 /**
  * [Admin] 删除现有规则
  */
 export async function handleAdminRulesDelete(pathname, db) {
   const id = Number(pathname.replace("/admin/rules/", ""));
   if (!Number.isFinite(id)) return jsonError("invalid rule id", 400);
-  await dbActions.deleteRule(db, id);
+  const result = await dbActions.deleteRule(db, id);
+  if (!hasDbChanges(result)) return jsonError("rule not found", 404);
   return json({ ok: true });
 }
 
@@ -103,8 +159,27 @@ export async function handleAdminWhitelistPost(request, db) {
   const senderPattern = String(body.sender_pattern || "").trim();
   if (!senderPattern) return jsonError("sender_pattern is required", 400);
   if (senderPattern.length > MAX_SENDER_PATTERN_LENGTH) return jsonError("sender_pattern is too long", 400);
+  if (!isValidRegexPattern(senderPattern, "i")) return jsonError("sender_pattern is not a valid regular expression", 400);
 
   await dbActions.createWhitelistEntry(db, senderPattern);
+  return json({ ok: true });
+}
+
+export async function handleAdminWhitelistPut(pathname, request, db) {
+  const id = Number(pathname.replace("/admin/whitelist/", ""));
+  if (!Number.isFinite(id)) return jsonError("invalid whitelist id", 400);
+
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return jsonError(parsed.error, 400);
+
+  const body = parsed.data || {};
+  const senderPattern = String(body.sender_pattern || "").trim();
+  if (!senderPattern) return jsonError("sender_pattern is required", 400);
+  if (senderPattern.length > MAX_SENDER_PATTERN_LENGTH) return jsonError("sender_pattern is too long", 400);
+  if (!isValidRegexPattern(senderPattern, "i")) return jsonError("sender_pattern is not a valid regular expression", 400);
+
+  const result = await dbActions.updateWhitelistEntry(db, id, senderPattern);
+  if (!hasDbChanges(result)) return jsonError("whitelist entry not found", 404);
   return json({ ok: true });
 }
 
@@ -114,6 +189,48 @@ export async function handleAdminWhitelistPost(request, db) {
 export async function handleAdminWhitelistDelete(pathname, db) {
   const id = Number(pathname.replace("/admin/whitelist/", ""));
   if (!Number.isFinite(id)) return jsonError("invalid whitelist id", 400);
-  await dbActions.deleteWhitelistEntry(db, id);
+  const result = await dbActions.deleteWhitelistEntry(db, id);
+  if (!hasDbChanges(result)) return jsonError("whitelist entry not found", 404);
   return json({ ok: true });
+}
+
+export async function handleAdminForwardingGet(db, envForwardTo) {
+  const settings = await dbActions.getForwardingSettings(db);
+  const effectiveForwardTo = dbActions.resolveEffectiveForwardTarget(settings, envForwardTo);
+  return json({
+    forwarding_mode: settings.forwarding_mode,
+    forward_to: settings.forward_to,
+    env_forward_to: String(envForwardTo || ""),
+    effective_forward_to: effectiveForwardTo,
+    forwarding_active: Boolean(effectiveForwardTo)
+  });
+}
+
+export async function handleAdminForwardingPut(request, db, envForwardTo) {
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return jsonError(parsed.error, 400);
+
+  const body = parsed.data || {};
+  const forwardingMode = String(body.forwarding_mode || "").trim();
+  const forwardTo = normalizeText(body.forward_to, MAX_FORWARD_ADDRESS_LENGTH).toLowerCase();
+
+  if (!FORWARDING_MODES.has(forwardingMode)) return jsonError("forwarding_mode is invalid", 400);
+  if (forwardTo && !isValidEmailAddress(forwardTo)) return jsonError("forward_to must be a valid email address", 400);
+  if (forwardingMode === "custom" && !forwardTo) return jsonError("forward_to is required when forwarding_mode=custom", 400);
+
+  await dbActions.updateForwardingSettings(db, {
+    forwarding_mode: forwardingMode,
+    forward_to: forwardTo || null
+  });
+
+  const settings = await dbActions.getForwardingSettings(db);
+  const effectiveForwardTo = dbActions.resolveEffectiveForwardTarget(settings, envForwardTo);
+  return json({
+    ok: true,
+    forwarding_mode: settings.forwarding_mode,
+    forward_to: settings.forward_to,
+    env_forward_to: String(envForwardTo || ""),
+    effective_forward_to: effectiveForwardTo,
+    forwarding_active: Boolean(effectiveForwardTo)
+  });
 }

@@ -9,6 +9,8 @@ export const MAX_RULE_PATTERN_LENGTH = 2000;
 export const MAX_SENDER_PATTERN_LENGTH = 500;
 export const MAX_SENDER_FILTER_LENGTH = 2000;
 export const MAX_RULE_REMARK_LENGTH = 200;
+export const MAX_FORWARD_ADDRESS_LENGTH = 254;
+export const MAX_EMAIL_QUERY_LENGTH = 160;
 
 export const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

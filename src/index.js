@@ -1,7 +1,7 @@
 import { PAGE_SIZE, RULES_PAGE_SIZE, HTML_HEADERS, CORS_HEADERS } from "./utils/constants.js";
 import { jsonError, applyCors } from "./utils/utils.js";
 import { isAdminAuthorized, isApiAuthorized } from "./core/auth.js";
-import { clearExpiredEmails } from "./core/db.js";
+import { clearExpiredEmails, getForwardingSettings, resolveEffectiveForwardTarget } from "./core/db.js";
 import { processIncomingEmail } from "./core/logic.js";
 import * as handlers from "./handlers/handlers.js";
 import { renderAuthHtml, renderHtml } from "./ui/templates.js";
@@ -22,9 +22,20 @@ export default {
     const parsed = await processIncomingEmail(message, env, ctx);
 
     // 如果处理成功（通过白名单）且设置了全局转发
-    if (parsed && env.FORWARD_TO) {
+    if (parsed) {
+      let forwardTarget = String(env.FORWARD_TO || "").trim();
+
       try {
-        await message.forward(env.FORWARD_TO);
+        const settings = await getForwardingSettings(env.DB);
+        forwardTarget = resolveEffectiveForwardTarget(settings, env.FORWARD_TO);
+      } catch (err) {
+        console.error("加载转发设置失败，回退到默认配置:", err);
+      }
+
+      if (!forwardTarget) return;
+
+      try {
+        await message.forward(forwardTarget);
       } catch (err) {
         console.error("邮件转发失败:", err);
       }
@@ -65,10 +76,14 @@ export default {
       if (pathname === "/admin/emails" && method === "GET") return handlers.handleAdminEmails(url, env.DB);
       if (pathname === "/admin/rules" && method === "GET") return handlers.handleAdminRulesGet(url, env.DB);
       if (pathname === "/admin/rules" && method === "POST") return handlers.handleAdminRulesPost(request, env.DB);
+      if (pathname.startsWith("/admin/rules/") && method === "PUT") return handlers.handleAdminRulesPut(pathname, request, env.DB);
       if (pathname.startsWith("/admin/rules/") && method === "DELETE") return handlers.handleAdminRulesDelete(pathname, env.DB);
       if (pathname === "/admin/whitelist" && method === "GET") return handlers.handleAdminWhitelistGet(url, env.DB);
       if (pathname === "/admin/whitelist" && method === "POST") return handlers.handleAdminWhitelistPost(request, env.DB);
+      if (pathname.startsWith("/admin/whitelist/") && method === "PUT") return handlers.handleAdminWhitelistPut(pathname, request, env.DB);
       if (pathname.startsWith("/admin/whitelist/") && method === "DELETE") return handlers.handleAdminWhitelistDelete(pathname, env.DB);
+      if (pathname === "/admin/settings/forwarding" && method === "GET") return handlers.handleAdminForwardingGet(env.DB, env.FORWARD_TO);
+      if (pathname === "/admin/settings/forwarding" && method === "PUT") return handlers.handleAdminForwardingPut(request, env.DB, env.FORWARD_TO);
     }
 
     if (pathname.startsWith("/api/")) return apiJsonError("Not Found", 404);

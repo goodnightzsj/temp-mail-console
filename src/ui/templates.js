@@ -1,550 +1,1486 @@
-export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
-  const DASHBOARD_STYLE = `
-      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-      ::-webkit-scrollbar { width: 6px; height: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      .dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-      .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
-      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+const FONT_LINKS = `
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+`;
+
+const THEME_BOOTSTRAP = `
+      (() => {
+        const stored = localStorage.getItem("tmc-theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const shouldUseDark = stored ? stored === "dark" : prefersDark;
+        document.documentElement.classList.toggle("dark", shouldUseDark);
+      })();
+`;
+
+const APP_STYLE = `
+      :root {
+        color-scheme: light;
+        --bg: oklch(0.975 0.012 85);
+        --bg-soft: oklch(0.955 0.018 82);
+        --panel: color-mix(in oklab, var(--bg) 82%, white 18%);
+        --panel-strong: oklch(0.932 0.024 76);
+        --panel-contrast: oklch(0.905 0.032 72);
+        --text: oklch(0.255 0.028 48);
+        --muted: oklch(0.545 0.02 50);
+        --line: oklch(0.84 0.018 78);
+        --line-strong: oklch(0.74 0.03 70);
+        --accent: oklch(0.63 0.16 52);
+        --accent-soft: oklch(0.93 0.05 70);
+        --teal: oklch(0.57 0.084 205);
+        --teal-soft: oklch(0.93 0.028 205);
+        --success: oklch(0.63 0.14 150);
+        --danger: oklch(0.61 0.19 28);
+        --shadow: 0 20px 60px rgba(58, 41, 21, 0.08);
+        --shadow-soft: 0 12px 28px rgba(58, 41, 21, 0.06);
+        --radius-xl: 28px;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --radius-sm: 12px;
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+        --display: "Newsreader", serif;
+        --body: "Space Grotesk", sans-serif;
+      }
+
+      .dark {
+        color-scheme: dark;
+        --bg: oklch(0.205 0.018 58);
+        --bg-soft: oklch(0.235 0.02 58);
+        --panel: oklch(0.255 0.02 58);
+        --panel-strong: oklch(0.288 0.024 58);
+        --panel-contrast: oklch(0.325 0.026 58);
+        --text: oklch(0.93 0.012 84);
+        --muted: oklch(0.73 0.015 82);
+        --line: oklch(0.39 0.018 58);
+        --line-strong: oklch(0.48 0.02 58);
+        --accent: oklch(0.73 0.14 58);
+        --accent-soft: color-mix(in oklab, var(--accent) 16%, transparent);
+        --teal: oklch(0.74 0.075 205);
+        --teal-soft: color-mix(in oklab, var(--teal) 16%, transparent);
+        --success: oklch(0.77 0.12 152);
+        --danger: oklch(0.72 0.17 30);
+        --shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
+        --shadow-soft: 0 16px 36px rgba(0, 0, 0, 0.26);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [v-cloak] {
+        display: none;
+      }
+
+      html {
+        font-size: 16px;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, color-mix(in oklab, var(--accent) 12%, transparent) 0, transparent 40%),
+          radial-gradient(circle at top right, color-mix(in oklab, var(--teal) 12%, transparent) 0, transparent 46%),
+          linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
+        color: var(--text);
+        font-family: var(--body);
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      body::before,
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      body::before {
+        background-image:
+          linear-gradient(color-mix(in oklab, var(--line) 50%, transparent) 1px, transparent 1px),
+          linear-gradient(90deg, color-mix(in oklab, var(--line) 50%, transparent) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 68%);
+        opacity: 0.28;
+      }
+
+      body::after {
+        background:
+          radial-gradient(circle at 20% 18%, color-mix(in oklab, var(--accent) 20%, transparent), transparent 28%),
+          radial-gradient(circle at 78% 16%, color-mix(in oklab, var(--teal) 16%, transparent), transparent 30%);
+        filter: blur(56px);
+        opacity: 0.28;
+        animation: drift 18s var(--ease-smooth) infinite alternate;
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .app-shell,
+      .auth-shell {
+        position: relative;
+        z-index: 1;
+      }
+
+      .shell {
+        width: min(1180px, calc(100vw - 2rem));
+        margin: 0 auto;
+      }
+
+      .app-shell {
+        padding: 1rem 0 2.5rem;
+      }
+
+      .screen-enter {
+        opacity: 0;
+        transform: translateY(18px);
+        animation: rise 0.72s var(--ease-out) forwards;
+        animation-delay: calc(var(--stagger, 0) * 90ms);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.15rem 1.2rem;
+      }
+
+      .brand {
+        display: grid;
+        gap: 0.45rem;
+        max-width: 48rem;
+      }
+
+      .brand-mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .brand-seal {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        background:
+          linear-gradient(160deg, color-mix(in oklab, var(--accent) 78%, white 12%), color-mix(in oklab, var(--teal) 44%, var(--accent) 56%));
+        color: white;
+        box-shadow: 0 18px 32px color-mix(in oklab, var(--accent) 25%, transparent);
+      }
+
+      .brand-title {
+        font-family: var(--display);
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 0.92;
+        letter-spacing: -0.04em;
+        margin: 0;
+        font-weight: 600;
+      }
+
+      .brand-kicker,
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 0.68rem;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .brand-subtitle,
+      .panel-copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+        max-width: 46rem;
+      }
+
+      .chrome-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .status-pill,
+      .mini-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.72rem 1rem;
+        border-radius: 999px;
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        background: color-mix(in oklab, var(--panel) 82%, transparent);
+        box-shadow: var(--shadow-soft);
+        color: var(--text);
+        font-size: 0.86rem;
+      }
+
+      .mini-pill {
+        padding: 0.44rem 0.72rem;
+        font-size: 0.74rem;
+        box-shadow: none;
+        background: color-mix(in oklab, var(--panel) 76%, transparent);
+      }
+
+      .status-dot {
+        width: 0.56rem;
+        height: 0.56rem;
+        border-radius: 999px;
+        background: var(--danger);
+        box-shadow: 0 0 0 0 color-mix(in oklab, var(--danger) 26%, transparent);
+      }
+
+      .status-dot.online {
+        background: var(--success);
+        animation: pulse 1.9s ease-out infinite;
+      }
+
+      .ghost-button,
+      .solid-button,
+      .soft-button,
+      .tab-button,
+      .chip-button {
+        border: 0;
+        border-radius: 999px;
+        padding: 0.82rem 1.12rem;
+        transition:
+          transform 180ms var(--ease-out),
+          background-color 180ms var(--ease-out),
+          color 180ms var(--ease-out),
+          border-color 180ms var(--ease-out),
+          box-shadow 180ms var(--ease-out),
+          opacity 180ms var(--ease-out);
+      }
+
+      .ghost-button,
+      .chip-button {
+        background: color-mix(in oklab, var(--panel) 88%, transparent);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+
+      .solid-button {
+        background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white 12%), color-mix(in oklab, var(--teal) 52%, var(--accent) 48%));
+        color: white;
+        box-shadow: 0 18px 32px color-mix(in oklab, var(--accent) 28%, transparent);
+      }
+
+      .soft-button {
+        background: color-mix(in oklab, var(--accent) 13%, var(--panel) 87%);
+        color: var(--accent);
+        border: 1px solid color-mix(in oklab, var(--accent) 24%, transparent);
+      }
+
+      .ghost-button:hover,
+      .solid-button:hover,
+      .soft-button:hover,
+      .tab-button:hover,
+      .chip-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .ghost-button:active,
+      .solid-button:active,
+      .soft-button:active,
+      .tab-button:active,
+      .chip-button:active {
+        transform: translateY(0);
+      }
+
+      .ghost-button[disabled],
+      .solid-button[disabled],
+      .soft-button[disabled],
+      .chip-button[disabled] {
+        opacity: 0.52;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .hero {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1.25fr 0.95fr;
+        align-items: stretch;
+      }
+
+      .hero-copy-panel,
+      .hero-metrics {
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 96%, transparent), color-mix(in oklab, var(--panel-strong) 92%, transparent));
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero-copy-panel::before,
+      .hero-metrics::before,
+      .panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 8%, transparent), transparent 44%, color-mix(in oklab, var(--teal) 7%, transparent));
+        opacity: 0.8;
+        pointer-events: none;
+      }
+
+      .hero-copy-panel > *,
+      .hero-metrics > *,
+      .panel > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero-copy-panel {
+        display: grid;
+        gap: 1rem;
+        min-height: 17.5rem;
+      }
+
+      .hero-title {
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(2.3rem, 4vw, 4.4rem);
+        line-height: 0.92;
+        letter-spacing: -0.05em;
+        max-width: 12ch;
+      }
+
+      .hero-note {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        align-items: center;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+        height: 100%;
+      }
+
+      .metric-card {
+        border-radius: 22px;
+        padding: 1.15rem;
+        border: 1px solid color-mix(in oklab, var(--line) 92%, transparent);
+        background: color-mix(in oklab, var(--panel) 82%, white 18%);
+        min-height: 7.8rem;
+        display: grid;
+        align-content: space-between;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+      }
+
+      .metric-value {
+        font-family: var(--display);
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 0.9;
+        letter-spacing: -0.05em;
+      }
+
+      .metric-copy {
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .tab-rail {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        padding: 0.5rem;
+        border-radius: 999px;
+        background: color-mix(in oklab, var(--panel) 86%, transparent);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .tab-button {
+        background: transparent;
+        color: var(--muted);
+        font-weight: 700;
+        padding-inline: 1rem;
+      }
+
+      .tab-button.active {
+        color: white;
+        background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 85%, white 15%), color-mix(in oklab, var(--teal) 48%, var(--accent) 52%));
+        box-shadow: 0 14px 24px color-mix(in oklab, var(--accent) 22%, transparent);
+      }
+
+      .workspace {
+        margin-top: 1rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .panel {
+        position: relative;
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 97%, transparent), color-mix(in oklab, var(--panel-strong) 95%, transparent));
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1.35rem 1.45rem 1rem;
+        border-bottom: 1px solid color-mix(in oklab, var(--line) 82%, transparent);
+      }
+
+      .panel-title {
+        margin: 0;
+        font-size: 1.14rem;
+        font-weight: 700;
+      }
+
+      .panel-subtitle {
+        margin: 0.42rem 0 0;
+        color: var(--muted);
+        max-width: 44rem;
+        line-height: 1.6;
+      }
+
+      .toolbar {
+        padding: 1.15rem 1.45rem 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        align-items: center;
+      }
+
+      .search-field,
+      .select-field,
+      .form-field {
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      .search-field {
+        flex: 1 1 18rem;
+      }
+
+      .field-label {
+        color: var(--muted);
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+      }
+
+      .field-input,
+      .field-select,
+      .field-textarea {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: color-mix(in oklab, var(--panel) 92%, transparent);
+        color: var(--text);
+        padding: 0.92rem 1rem;
+        transition:
+          border-color 180ms var(--ease-out),
+          transform 180ms var(--ease-out),
+          box-shadow 180ms var(--ease-out),
+          background-color 180ms var(--ease-out);
+        box-shadow: inset 0 1px 0 color-mix(in oklab, white 18%, transparent);
+      }
+
+      .field-input:focus,
+      .field-select:focus,
+      .field-textarea:focus {
+        outline: none;
+        border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
+        box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 12%, transparent);
+        transform: translateY(-1px);
+      }
+
+      .field-textarea {
+        min-height: 7rem;
+        resize: vertical;
+      }
+
+      .toolbar-actions,
+      .pager,
+      .inline-actions,
+      .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        align-items: center;
+      }
+
+      .stack {
+        display: grid;
+        gap: 1rem;
+        padding: 1.2rem 1.45rem 1.45rem;
+      }
+
+      .message-feed,
+      .rules-feed,
+      .whitelist-feed {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .message-card,
+      .resource-card {
+        border-radius: 22px;
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        background: color-mix(in oklab, var(--panel) 92%, transparent);
+        overflow: hidden;
+        transition:
+          transform 180ms var(--ease-out),
+          border-color 180ms var(--ease-out),
+          box-shadow 180ms var(--ease-out),
+          background-color 180ms var(--ease-out);
+      }
+
+      .message-card:hover,
+      .resource-card:hover {
+        transform: translateY(-2px);
+        border-color: color-mix(in oklab, var(--accent) 34%, var(--line));
+        box-shadow: var(--shadow-soft);
+      }
+
+      .message-summary {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        padding: 1rem 1.1rem;
+        text-align: left;
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .message-meta,
+      .resource-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .subject {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .message-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+        gap: 0.8rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .message-details {
+        padding: 0 1.1rem 1rem;
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .result-shell,
+      .note-shell,
+      .api-shell,
+      .status-shell {
+        border-radius: 18px;
+        border: 1px solid color-mix(in oklab, var(--line) 82%, transparent);
+        background: color-mix(in oklab, var(--panel-contrast) 70%, transparent);
+        padding: 1rem;
+      }
+
+      .result-list {
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .result-item {
+        display: grid;
+        gap: 0.36rem;
+        padding: 0.8rem 0.9rem;
+        border-radius: 16px;
+        background: color-mix(in oklab, var(--accent) 9%, var(--panel) 91%);
+        border: 1px solid color-mix(in oklab, var(--accent) 16%, transparent);
+      }
+
+      .result-item strong {
+        font-size: 0.86rem;
+        color: var(--accent);
+      }
+
+      .result-item code,
+      .mono {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        word-break: break-word;
+      }
+
+      .empty-state {
+        display: grid;
+        gap: 0.8rem;
+        place-items: start;
+        padding: 2rem 1.45rem;
+        min-height: 16rem;
+        align-content: center;
+      }
+
+      .empty-title {
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        letter-spacing: -0.04em;
+      }
+
+      .empty-copy,
+      .microcopy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        max-width: 40rem;
+      }
+
+      .split-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        gap: 1rem;
+        padding: 1.2rem 1.45rem 1.45rem;
+      }
+
+      .form-card,
+      .collection-card,
+      .api-card {
+        border-radius: 22px;
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        background: color-mix(in oklab, var(--panel) 92%, transparent);
+        overflow: hidden;
+      }
+
+      .form-card {
+        display: grid;
+        gap: 1rem;
+        padding: 1.2rem;
+        align-content: start;
+      }
+
+      .collection-card {
+        padding: 1.2rem;
+      }
+
+      .resource-card {
+        padding: 1rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .resource-title {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1rem;
+      }
+
+      .resource-copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .tag-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.42rem 0.74rem;
+        border-radius: 999px;
+        background: color-mix(in oklab, var(--panel-contrast) 68%, transparent);
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        color: var(--muted);
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+      }
+
+      .tag.positive {
+        background: color-mix(in oklab, var(--success) 15%, var(--panel) 85%);
+        color: var(--success);
+        border-color: color-mix(in oklab, var(--success) 22%, transparent);
+      }
+
+      .tag.attention {
+        background: color-mix(in oklab, var(--accent) 14%, var(--panel) 86%);
+        color: var(--accent);
+        border-color: color-mix(in oklab, var(--accent) 22%, transparent);
+      }
+
+      .tag.neutral {
+        color: var(--muted);
+      }
+
+      .settings-grid,
+      .api-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
+        gap: 1rem;
+        padding: 1.2rem 1.45rem 1.45rem;
+      }
+
+      .mode-switch {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.4rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: color-mix(in oklab, var(--panel) 88%, transparent);
+      }
+
+      .mode-option {
+        border: 0;
+        border-radius: 999px;
+        padding: 0.7rem 1rem;
+        color: var(--muted);
+        background: transparent;
+        font-weight: 700;
+        transition:
+          background-color 180ms var(--ease-out),
+          color 180ms var(--ease-out),
+          transform 180ms var(--ease-out);
+      }
+
+      .mode-option.active {
+        color: white;
+        background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 84%, white 16%), color-mix(in oklab, var(--teal) 45%, var(--accent) 55%));
+        box-shadow: 0 14px 24px color-mix(in oklab, var(--accent) 18%, transparent);
+      }
+
+      .code-block {
+        margin: 0;
+        padding: 1rem;
+        border-radius: 18px;
+        overflow: auto;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.9rem;
+        line-height: 1.7;
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        background: color-mix(in oklab, var(--panel-contrast) 80%, transparent);
+      }
+
+      .inline-alert {
+        margin-top: 1rem;
+        padding: 0.95rem 1.1rem;
+        border-radius: 18px;
+        border: 1px solid color-mix(in oklab, var(--danger) 18%, transparent);
+        background: color-mix(in oklab, var(--danger) 9%, var(--panel) 91%);
+        color: color-mix(in oklab, var(--danger) 78%, var(--text));
+      }
+
+      .toast {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 40;
+        min-width: min(24rem, calc(100vw - 2rem));
+        max-width: 28rem;
+        padding: 0.95rem 1.05rem;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: color-mix(in oklab, var(--panel) 96%, transparent);
+        box-shadow: var(--shadow);
+        display: grid;
+        gap: 0.25rem;
+        animation: rise 0.3s var(--ease-out);
+      }
+
+      .toast.error {
+        border-color: color-mix(in oklab, var(--danger) 20%, transparent);
+      }
+
+      .toast.success {
+        border-color: color-mix(in oklab, var(--success) 20%, transparent);
+      }
+
+      .auth-shell {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1.25rem;
+      }
+
+      .auth-grid {
+        width: min(1080px, 100%);
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+        gap: 1rem;
+      }
+
+      .auth-story,
+      .auth-card {
+        position: relative;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 97%, transparent), color-mix(in oklab, var(--panel-strong) 95%, transparent));
+        border: 1px solid var(--line);
+        border-radius: 32px;
+        box-shadow: var(--shadow);
+      }
+
+      .auth-story::before,
+      .auth-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(145deg, color-mix(in oklab, var(--accent) 10%, transparent), transparent 45%, color-mix(in oklab, var(--teal) 10%, transparent));
+        pointer-events: none;
+      }
+
+      .auth-story-content,
+      .auth-card-content {
+        position: relative;
+        z-index: 1;
+        padding: clamp(1.5rem, 4vw, 2.2rem);
+      }
+
+      .auth-story-content {
+        display: grid;
+        gap: 1.1rem;
+        min-height: 30rem;
+        align-content: space-between;
+      }
+
+      .auth-title {
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(2.5rem, 6vw, 4.9rem);
+        line-height: 0.9;
+        letter-spacing: -0.05em;
+        max-width: 10ch;
+      }
+
+      .auth-card-content {
+        display: grid;
+        gap: 1rem;
+        align-content: start;
+      }
+
+      .auth-form {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .auth-foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .list-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 0.9rem;
+      }
+
+      .section-number {
+        font-family: var(--display);
+        font-size: 2rem;
+        letter-spacing: -0.05em;
+      }
+
+      .stat-line {
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .key-points {
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .key-point {
+        display: grid;
+        gap: 0.28rem;
+        padding-left: 1rem;
+        border-left: 2px solid color-mix(in oklab, var(--accent) 28%, transparent);
+      }
+
+      .key-point strong {
+        font-size: 0.94rem;
+      }
+
+      .auth-error {
+        display: none;
+        border-radius: 16px;
+        padding: 0.85rem 0.95rem;
+        border: 1px solid color-mix(in oklab, var(--danger) 20%, transparent);
+        background: color-mix(in oklab, var(--danger) 9%, var(--panel) 91%);
+        color: color-mix(in oklab, var(--danger) 78%, var(--text));
+      }
+
+      .auth-error.show {
+        display: block;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 28%, transparent);
+        }
+        70% {
+          box-shadow: 0 0 0 14px transparent;
+        }
+        100% {
+          box-shadow: 0 0 0 0 transparent;
+        }
+      }
+
+      @keyframes drift {
+        from {
+          transform: translate3d(-1.5%, -1.5%, 0) scale(1);
+        }
+        to {
+          transform: translate3d(1.5%, 1.5%, 0) scale(1.04);
+        }
+      }
+
+      @media (max-width: 1080px) {
+        .hero,
+        .split-layout,
+        .settings-grid,
+        .api-grid,
+        .auth-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .topbar {
+          align-items: start;
+          flex-direction: column;
+        }
+
+        .chrome-actions,
+        .hero-actions,
+        .toolbar-actions,
+        .pager,
+        .inline-actions,
+        .form-actions {
+          width: 100%;
+        }
+
+        .message-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .metrics-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .shell {
+          width: min(100vw - 1rem, 1180px);
+        }
+
+        .panel-head,
+        .toolbar,
+        .stack,
+        .split-layout,
+        .settings-grid,
+        .api-grid {
+          padding-inline: 1rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+`;
+
+function renderLogo() {
+  return `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7.5C4 6.12 5.12 5 6.5 5h11C18.88 5 20 6.12 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z" stroke="currentColor" stroke-width="1.6"/>
+      <path d="m5.5 7 6.5 5 6.5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M7.5 14.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
   `;
+}
 
-
-  return `<!DOCTYPE html>
-<html lang="zh">
+function renderDocumentHead(title) {
+  return `
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Temp Mail Console</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { darkMode: 'class' };
-      (function() {
-        const theme = localStorage.getItem('theme');
-        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      })();
-    </script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <style>\${DASHBOARD_STYLE}</style>
-  </head>
-  <body class="bg-slate-50 dark:bg-[#09090b] text-slate-600 dark:text-slate-300 antialiased selection:bg-indigo-500/30 transition-colors duration-300">
-    <div id="app" class="min-h-screen">
-      <header class="max-w-5xl mx-auto px-4 py-3 mt-1">
-        <div class="rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.02] backdrop-blur-xl px-6 py-5 flex items-center justify-between shadow-sm dark:shadow-2xl transition-all">
-          <div class="flex items-center gap-4">
-            <div class="h-10 w-10 flex border border-slate-200 dark:border-white/10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-inner shadow-white/20">
-              <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            </div>
-            <div>
-              <h1 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Temp Mail Console</h1>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cloudflare Workers</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <!-- 运行状态 -->
-            <div
-              class="h-8 flex items-center gap-1.5 px-3 rounded-full border shadow-sm transition-all duration-300"
-              :class="apiActive ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'"
-            >
-              <span class="relative flex h-1.5 w-1.5">
-                <span v-if="apiActive" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-1.5 w-1.5" :class="apiActive ? 'bg-emerald-500' : 'bg-red-500'"></span>
-              </span>
-              <span class="text-[10px] font-bold uppercase tracking-widest" :class="apiActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'">
-                {{ apiActive ? '运行中' : '网络错误' }}
-              </span>
-            </div>
-            <!-- 主题切换 -->
-            <button
-              @click="toggleTheme"
-              class="h-8 w-8 flex items-center justify-center rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.05] text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-all shadow-sm"
-              :title="isDark ? '切换到浅色模式' : '切换到深色模式'"
-            >
-              <svg v-if="isDark" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-              <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-            </button>
-          </div>
-        </div>
-      </header>
+    <title>${title}</title>
+${FONT_LINKS}
+    <script>${THEME_BOOTSTRAP}</script>
+    <style>${APP_STYLE}</style>
+  </head>`;
+}
 
-      <main class="max-w-5xl mx-auto px-4 pt-3 pb-6">
-        <div class="mb-6 p-1 relative flex items-center gap-1 bg-slate-200/50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 rounded-xl w-fit shadow-sm dark:shadow-inner dark:shadow-black/20">
-          <button
-            class="px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200"
-            :class="activeTab === 'emails' ? 'bg-white dark:bg-white/[0.1] text-indigo-600 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'"
-            @click="activeTab = 'emails'"
-          >邮件记录</button>
-          <button
-            class="px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200"
-            :class="activeTab === 'rules' ? 'bg-white dark:bg-white/[0.1] text-indigo-600 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'"
-            @click="activeTab = 'rules'"
-          >命中规则</button>
-          <button
-            class="px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200"
-            :class="activeTab === 'whitelist' ? 'bg-white dark:bg-white/[0.1] text-indigo-600 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'"
-            @click="activeTab = 'whitelist'"
-          >发件人白名单</button>
-          <button
-            class="px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200"
-            :class="activeTab === 'api' ? 'bg-white dark:bg-white/[0.1] text-indigo-600 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'"
-            @click="activeTab = 'api'"
-          >API</button>
-        </div>
-
-        <div v-if="adminError" class="mb-4 text-xs text-red-400">{{ adminError }}</div>
-
-        <section v-if="activeTab === 'emails'" class="bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm dark:shadow-xl dark:shadow-black/20 overflow-hidden backdrop-blur-sm">
-          <div class="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/[0.01]">
-            <div class="flex items-center gap-4">
-              <h2 class="text-sm font-semibold text-slate-900 dark:text-white">收件箱</h2>
-              <!-- 域名筛选器 -->
-              <div v-if="availableDomains.length > 0" class="flex items-center gap-2 pl-4 border-l border-slate-200 dark:border-white/5">
-                <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">筛选域名</span>
-                <select
-                  v-model="filterDomain"
-                  @change="page=1;loadList()"
-                  class="bg-transparent text-[11px] font-medium text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer hover:text-indigo-600 dark:hover:text-white transition-colors"
-                >
-                  <option value="">全部域名</option>
-                  <option v-for="d in availableDomains" :key="d" :value="d">{{ d }}</option>
-                </select>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 text-[11px]">
-              <button class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @click="prevPage" :disabled="page===1">上一页</button>
-              <span class="px-3 py-1 text-slate-500 dark:text-slate-400">{{ page }} / {{ totalPages }}</span>
-              <button class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" @click="nextPage" :disabled="page>=totalPages">下一页</button>
-            </div>
-          </div>
-          <div class="p-5 space-y-3">
-            <div class="grid grid-cols-[1.5fr,1.2fr,1.2fr,0.8fr] gap-4 px-3 text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-medium">
-              <div>主题</div>
-              <div>发件人</div>
-              <div>收件人</div>
-              <div class="text-right">已接收</div>
-            </div>
-            <div v-if="items.length===0" class="min-h-[240px] flex items-center justify-center text-xs text-slate-400">暂无邮件记录</div>
-            <div v-for="item in items" :key="item.message_id" class="p-3.5 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] hover:bg-white dark:hover:bg-white/[0.04] hover:shadow-sm dark:hover:shadow-none transition-all duration-200 cursor-pointer group" @click="toggleResult(item.message_id)">
-              <div class="grid grid-cols-[1.5fr,1.2fr,1.2fr,0.8fr] gap-4 items-center">
-                <div class="min-w-0">
-                  <div class="text-[13px] font-medium text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-white transition-colors">{{ item.subject || '(无主题)' }}</div>
-                </div>
-                <div class="min-w-0 text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ item.from_address }}</div>
-                <div class="min-w-0 text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ item.to_address }}</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 text-right tabular-nums">{{ formatTime(item.received_at) }}</div>
-                <div v-if="!hasResult(item.extracted_json) || expandedResults[item.message_id]" class="col-span-4 mt-3">
-                  <div v-if="hasResult(item.extracted_json) && expandedResults[item.message_id]" class="relative group/copy" @click.stop>
-                    <div
-                      class="text-[12px] bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-200 rounded-lg p-3 whitespace-pre-wrap font-mono pr-12 shadow-inner"
-                    >{{ formatResult(item.extracted_json) }}</div>
-                    <button
-                      class="absolute top-2 right-2 p-1.5 rounded-md text-indigo-400 dark:text-indigo-300 hover:text-indigo-700 dark:hover:text-white hover:bg-indigo-100 dark:hover:bg-indigo-500/20 opacity-0 group-hover/copy:opacity-100 transition-all border border-transparent hover:border-indigo-200 dark:hover:border-indigo-500/30 font-medium text-[10px] tracking-wider uppercase"
-                      @click.stop="copyContent(formatResult(item.extracted_json), item.message_id)"
-                    >{{ copyStatus[item.message_id] ? '已复制' : '复制' }}</button>
-                  </div>
-                  <div v-if="!hasResult(item.extracted_json)" class="text-[11px] text-slate-400 dark:text-slate-600">— 未提取到规则内容</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="activeTab === 'rules'" class="bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm dark:shadow-xl dark:shadow-black/20 overflow-hidden backdrop-blur-sm">
-          <div class="p-5 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.01]">
-            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">命中规则</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">符合发信人过滤规则的邮件，将会使用对应的邮件内容匹配规则进行解析</p>
-          </div>
-
-          <div class="p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div class="lg:col-span-5">
-              <div class="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.01] p-5 lg:sticky lg:top-5">
-                <div class="mb-4">
-                  <div class="text-[13px] font-medium text-slate-900 dark:text-white mb-0.5">添加规则</div>
-                  <div class="text-[11px] text-slate-500">创建新的正则提取器</div>
-                </div>
-                <div class="space-y-4">
-                  <div class="space-y-1.5">
-                    <label class="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">备注</label>
-                    <input v-model="newRule.remark" type="text" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/5 bg-white dark:bg-black/20 text-[13px] text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all font-sans" placeholder="e.g. 验证码" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <label class="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">发信人过滤规则</label>
-                    <textarea v-model="newRule.sender_filter" rows="3" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/5 bg-white dark:bg-black/20 text-[13px] text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all font-mono" placeholder="e.g. noreply@example.com"></textarea>
-                  </div>
-                  <div class="space-y-1.5">
-                    <label class="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">内容匹配正则</label>
-                    <textarea v-model="newRule.pattern" rows="5" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/5 bg-white dark:bg-black/20 text-[13px] text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all font-mono" placeholder="e.g. (\d{6})"></textarea>
-                  </div>
-                  <button class="w-full py-2.5 rounded-lg bg-indigo-600 dark:bg-white text-white dark:text-slate-900 font-medium text-[13px] hover:bg-indigo-700 dark:hover:bg-slate-200 hover:shadow-md dark:hover:shadow-none transition-all mt-2" @click="addRule">添加规则</button>
-                </div>
-              </div>
-            </div>
-            <div class="lg:col-span-7">
-              <div class="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.01] flex flex-col min-h-[460px]">
-                <div class="px-5 py-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-white/50 dark:bg-transparent">
-                  <div class="text-[12px] font-medium text-slate-700 dark:text-slate-300">现有规则</div>
-                  <div class="flex items-center gap-2 text-[11px]">
-                    <span class="text-slate-400 dark:text-slate-500 mr-2">总计: {{ rulesTotal }}</span>
-                    <button class="px-2.5 py-1 rounded border border-slate-200 dark:border-white/5 hover:bg-white dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" @click="prevRulesPage" :disabled="rulesPage===1">上一页</button>
-                    <span class="text-slate-500 dark:text-slate-400">{{ rulesPage }} / {{ rulesTotalPages }}</span>
-                    <button class="px-2.5 py-1 rounded border border-slate-200 dark:border-white/5 hover:bg-white dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" @click="nextRulesPage" :disabled="rulesPage>=rulesTotalPages">下一页</button>
-                  </div>
-                </div>
-                <div class="p-3 space-y-2 flex-1 overflow-auto">
-                  <div v-if="rules.length===0" class="h-full flex items-center justify-center text-[12px] text-slate-400">尚无配置规则。</div>
-                  <div v-for="rule in rules" :key="rule.id" class="p-3.5 rounded-lg border border-slate-100 dark:border-white/5 bg-white dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:border-slate-200 dark:hover:border-white/10 transition-all flex items-start justify-between gap-4 group">
-                    <div class="min-w-0 space-y-1.5 flex-1">
-                      <div v-if="rule.remark" class="text-[13px] font-medium text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-white transition-colors">{{ rule.remark }}</div>
-                      <div class="text-[11px] text-slate-400 dark:text-slate-400 truncate flex items-center gap-2">
-                        <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/5 font-mono text-slate-500 dark:text-slate-400">来自</span>
-                        <span class="truncate">{{ rule.sender_filter || '所有发件人' }}</span>
-                      </div>
-                      <div class="text-[11px] text-slate-400 dark:text-slate-400 break-words flex items-start gap-2">
-                        <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/5 font-mono shrink-0 pt-0.5 text-slate-500 dark:text-slate-400">正则</span>
-                        <span class="font-mono text-indigo-500 dark:text-indigo-300">{{ rule.pattern }}</span>
-                      </div>
-                    </div>
-                    <button class="shrink-0 text-[11px] px-2.5 py-1.5 rounded-md text-red-500 dark:text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-400/10 transition-all font-medium" @click="deleteRule(rule.id)">删除</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="activeTab === 'whitelist'" class="bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm dark:shadow-xl dark:shadow-black/20 overflow-hidden backdrop-blur-sm">
-          <div class="p-5 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.01]">
-            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">发件人白名单</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">只处理匹配白名单的发信人，白名单为空时接受所有邮件</p>
-          </div>
-          <div class="p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div class="lg:col-span-5">
-              <div class="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.01] p-5">
-                <div class="mb-4">
-                  <div class="text-[13px] font-medium text-slate-900 dark:text-white mb-0.5">添加白名单</div>
-                  <div class="text-[11px] text-slate-500">支持正则表达式</div>
-                </div>
-                <div class="space-y-4">
-                  <div class="space-y-1.5">
-                    <label class="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">发信人模式</label>
-                    <textarea v-model="newWhitelist" rows="4" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/5 bg-white dark:bg-black/20 text-[13px] text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all font-mono" placeholder="e.g. .*@example\.com"></textarea>
-                  </div>
-                  <button class="w-full py-2.5 rounded-lg bg-indigo-600 dark:bg-white text-white dark:text-slate-900 font-medium text-[13px] hover:bg-indigo-700 dark:hover:bg-slate-200 hover:shadow-md dark:hover:shadow-none transition-all mt-2" @click="addWhitelistEntry">添加白名单</button>
-                </div>
-              </div>
-            </div>
-            <div class="lg:col-span-7">
-              <div class="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.01] flex flex-col min-h-[220px]">
-                <div class="px-5 py-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-white/50 dark:bg-transparent">
-                  <div class="text-[12px] font-medium text-slate-700 dark:text-slate-300">白名单列表</div>
-                  <div class="flex items-center gap-2 text-[11px]">
-                    <span class="text-slate-400 dark:text-slate-500 mr-2">总计: {{ whitelistTotal }}</span>
-                    <button class="px-2.5 py-1 rounded border border-slate-200 dark:border-white/5 hover:bg-white dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" @click="prevWhitelistPage" :disabled="whitelistPage===1">上一页</button>
-                    <span class="text-slate-500 dark:text-slate-400">{{ whitelistPage }} / {{ whitelistTotalPages }}</span>
-                    <button class="px-2.5 py-1 rounded border border-slate-200 dark:border-white/5 hover:bg-white dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" @click="nextWhitelistPage" :disabled="whitelistPage>=whitelistTotalPages">下一页</button>
-                  </div>
-                </div>
-                <div class="p-3 space-y-2 flex-1 overflow-auto">
-                  <div v-if="whitelistItems.length===0" class="h-full flex items-center justify-center text-[12px] text-slate-400">尚无白名单，当前接受所有发信人</div>
-                  <div v-for="item in whitelistItems" :key="item.id" class="p-3 rounded-lg border border-slate-100 dark:border-white/5 bg-white dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:border-slate-200 dark:hover:border-white/10 transition-colors flex items-center justify-between gap-4 group">
-                    <div class="min-w-0 font-mono text-[12px] text-indigo-500 dark:text-indigo-300 truncate">{{ item.sender_pattern }}</div>
-                    <button class="shrink-0 text-[11px] px-2.5 py-1.5 rounded-md text-red-500 dark:text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-400/10 transition-all font-medium" @click="deleteWhitelistEntry(item.id)">删除</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section v-if="activeTab === 'api'" class="bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm dark:shadow-xl dark:shadow-black/20 overflow-hidden backdrop-blur-sm">
-          <div class="p-5 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.01]">
-            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">API</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">外部集成接口文档，用于第三方系统获取邮件处理结果</p>
-          </div>
-
-          <div class="p-6 space-y-10">
-            <!-- 身份验证 -->
-            <div class="space-y-3">
-              <div class="flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                <h3 class="text-[13px] font-semibold text-slate-700 dark:text-slate-200">身份验证</h3>
-              </div>
-              <p class="text-[12px] text-slate-500 dark:text-slate-400">所有 API 请求必须在请求头中包含 Bearer Token。</p>
-              <div class="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#030303] p-4 text-slate-600 dark:text-slate-300 font-mono text-[12px] shadow-sm dark:shadow-inner">
-                <span class="text-slate-400 dark:text-slate-500">Authorization:</span> Bearer <span class="text-indigo-600 dark:text-indigo-400">&lt;API_TOKEN&gt;</span>
-              </div>
-            </div>
-
-            <!-- 接口：获取最新邮件结果 -->
-            <div class="space-y-4">
-              <div class="flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                <h3 class="text-[13px] font-semibold text-slate-700 dark:text-slate-200">获取最新邮件结果</h3>
-              </div>
-
-              <div class="flex items-center gap-3">
-                <span class="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider">GET</span>
-                <code class="text-[12px] text-slate-600 dark:text-slate-300 font-mono">/api/emails/latest</code>
-              </div>
-
-              <div class="space-y-3">
-                <div class="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">请求参数 (Query)</div>
-                <div class="rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden">
-                  <table class="w-full text-left text-[12px] border-collapse">
-                    <thead class="bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 font-medium">
-                      <tr>
-                        <th class="px-4 py-2 border-b border-slate-200 dark:border-white/5 w-1/4">参数</th>
-                        <th class="px-4 py-2 border-b border-slate-200 dark:border-white/5 w-1/4">类型</th>
-                        <th class="px-4 py-2 border-b border-slate-200 dark:border-white/5">说明</th>
-                      </tr>
-                    </thead>
-                    <tbody class="text-slate-600 dark:text-slate-300">
-                      <tr>
-                        <td class="px-4 py-3 border-b border-slate-200 dark:border-white/5 font-mono text-indigo-600 dark:text-indigo-300">address</td>
-                        <td class="px-4 py-3 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 italic">string</td>
-                        <td class="px-4 py-3 border-b border-slate-200 dark:border-white/5">收件人的电子邮箱地址 (必填)</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div class="space-y-3 pt-2">
-                <div class="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">响应参数说明</div>
-                <div class="rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden">
-                  <table class="w-full text-left text-[11px] border-collapse">
-                    <thead class="bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 font-medium">
-                      <tr>
-                        <th class="px-4 py-2 border-b border-slate-200 dark:border-white/5 w-1/4">参数名</th>
-                        <th class="px-4 py-2 border-b border-slate-200 dark:border-white/5">类型</th>
-                        <th class="px-4 py-2 border-b border-slate-200 dark:border-white/5">详细说明</th>
-                      </tr>
-                    </thead>
-                    <tbody class="text-slate-600 dark:text-slate-300">
-                      <tr>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-indigo-600 dark:text-indigo-300">code</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 italic">number</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5">业务状态码，200 表示成功</td>
-                      </tr>
-                      <tr class="bg-slate-50/50 dark:bg-white/[0.01]">
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-indigo-600 dark:text-indigo-300">data</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 italic">object</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5">返回的数据主体</td>
-                      </tr>
-                      <tr>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-slate-400 dark:text-slate-400 pl-8">.from_address</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 italic">string</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5">发件人电子邮箱地址</td>
-                      </tr>
-                      <tr>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-slate-400 dark:text-slate-400 pl-8">.to_address</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 italic">string</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5">收件人电子邮箱地址</td>
-                      </tr>
-                      <tr>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-slate-400 dark:text-slate-400 pl-8">.received_at</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 italic">number</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5">邮件接收时间戳（13位毫秒）</td>
-                      </tr>
-                      <tr>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-slate-400 dark:text-slate-400 pl-8">.results</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 italic">array</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5">命中规则提取的结果列表</td>
-                      </tr>
-                      <tr class="bg-indigo-500/[0.02]">
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-indigo-500/50 dark:text-indigo-200/50 pl-12">..rule_id</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-600 italic">number</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400">匹配到的规则唯一 ID</td>
-                      </tr>
-                      <tr class="bg-indigo-500/[0.02]">
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-indigo-500/50 dark:text-indigo-200/50 pl-12">..value</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-600 italic">string</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400">正则匹配提取到的实际内容</td>
-                      </tr>
-                      <tr class="bg-indigo-500/[0.02]">
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 font-mono text-indigo-500/50 dark:text-indigo-200/50 pl-12">..remark</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-600 italic">string</td>
-                        <td class="px-4 py-2 border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400">规则的备注说明（可能为 null）</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div class="space-y-3 pt-2">
-                <div class="text-[11px] font-medium text-slate-500 uppercase tracking-widest">响应示例 (JSON)</div>
-                <pre class="rounded-xl border border-white/5 bg-[#030303] p-4 text-slate-300 font-mono text-[12px] shadow-inner overflow-x-auto leading-relaxed">{
-  <span class="text-indigo-400">"code"</span>: 200,
-  <span class="text-indigo-400">"data"</span>: {
-    <span class="text-indigo-400">"from_address"</span>: <span class="text-emerald-400">"sender@example.com"</span>,
-    <span class="text-indigo-400">"to_address"</span>: <span class="text-emerald-400">"target@domain.com"</span>,
-    <span class="text-indigo-400">"received_at"</span>: 1741881600000,
-    <span class="text-indigo-400">"results"</span>: [
-      { <span class="text-indigo-400">"rule_id"</span>: 1, <span class="text-indigo-400">"value"</span>: <span class="text-emerald-400">"123"</span>, <span class="text-indigo-400">"remark"</span>: <span class="text-emerald-400">"备注"</span> }
-    ]
-  }
-}</pre>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-      <footer class="max-w-5xl mx-auto px-4 py-6 text-xs text-slate-500 dark:text-slate-400">
-        <div class="flex items-center justify-between border-t border-slate-200 dark:border-white/10 pt-4">
-          <span>© 2026 Temp Mail Console</span>
-          <a class="text-slate-400 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white transition-colors" href="https://github.com/beyoug/temp-mail-console" target="_blank" rel="noreferrer">GitHub</a>
-        </div>
-      </footer>
-    </div>
-
-    <script>
+function renderAppScript(pageSize, rulesPageSize) {
+  return `
       const { createApp } = Vue;
+      const STORAGE_THEME = "tmc-theme";
+      const STORAGE_TAB = "tmc-active-tab";
+      const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      });
+
       createApp({
         data() {
           return {
-            page: 1, total: 0, items: [],
-            rules: [], rulesPage: 1, rulesTotal: 0,
-            newRule: { remark: "", sender_filter: "", pattern: "" },
-            whitelistItems: [], whitelistPage: 1, whitelistTotal: 0,
-            newWhitelist: "", activeTab: "emails",
-            adminToken: "", adminError: "", poller: null,
-            expandedResults: {}, copyStatus: {}, isDark: true,
+            ready: false,
+            activeTab: localStorage.getItem(STORAGE_TAB) || "emails",
+            page: 1,
+            total: 0,
+            items: [],
+            searchQuery: "",
+            filterDomain: "",
+            availableDomains: [],
+            rules: [],
+            rulesPage: 1,
+            rulesTotal: 0,
+            ruleForm: { remark: "", sender_filter: "", pattern: "" },
+            editingRuleId: null,
+            whitelistItems: [],
+            whitelistPage: 1,
+            whitelistTotal: 0,
+            whitelistForm: { sender_pattern: "" },
+            editingWhitelistId: null,
+            forwardingForm: {
+              forwarding_mode: "env",
+              forward_to: "",
+              env_forward_to: "",
+              effective_forward_to: "",
+              forwarding_active: false
+            },
+            adminToken: "",
+            adminError: "",
+            poller: null,
+            isDark: document.documentElement.classList.contains("dark"),
             apiActive: true,
-            availableDomains: [], filterDomain: ""
+            savingRule: false,
+            savingWhitelist: false,
+            savingForwarding: false,
+            toast: {
+              show: false,
+              tone: "success",
+              title: "",
+              message: ""
+            }
           };
         },
         computed: {
-          totalPages() { return Math.max(1, Math.ceil(this.total / ${PAGE_SIZE})); },
-          rulesTotalPages() { return Math.max(1, Math.ceil(this.rulesTotal / ${RULES_PAGE_SIZE})); },
-          whitelistTotalPages() { return Math.max(1, Math.ceil(this.whitelistTotal / ${RULES_PAGE_SIZE})); }
+          totalPages() {
+            return Math.max(1, Math.ceil(this.total / ${pageSize}));
+          },
+          rulesTotalPages() {
+            return Math.max(1, Math.ceil(this.rulesTotal / ${rulesPageSize}));
+          },
+          whitelistTotalPages() {
+            return Math.max(1, Math.ceil(this.whitelistTotal / ${rulesPageSize}));
+          },
+          forwardingModeLabel() {
+            if (this.forwardingForm.forwarding_mode === "custom") return "自定义邮箱";
+            if (this.forwardingForm.forwarding_mode === "disabled") return "已停用";
+            return "跟随部署默认值";
+          },
+          effectiveForwardTarget() {
+            return this.forwardingForm.effective_forward_to || "";
+          }
         },
         mounted() {
-          this.isDark = document.documentElement.classList.contains('dark');
           this.adminToken = getCookieValue("admin_token");
+          requestAnimationFrame(() => {
+            this.ready = true;
+          });
           if (!this.adminToken) return;
-          this.loadList(); this.loadRules(); this.loadWhitelistData(); this.loadDomains(); this.startPolling();
+          this.bootstrap();
         },
-        beforeUnmount() { this.stopPolling(); },
+        beforeUnmount() {
+          this.stopPolling();
+        },
         methods: {
+          async bootstrap() {
+            await Promise.all([
+              this.loadList(),
+              this.loadRules(),
+              this.loadWhitelistData(),
+              this.loadDomains(),
+              this.loadForwardingSettings()
+            ]);
+            this.startPolling();
+          },
+          setActiveTab(tab) {
+            this.activeTab = tab;
+            localStorage.setItem(STORAGE_TAB, tab);
+          },
           toggleTheme() {
             this.isDark = !this.isDark;
-            const root = document.documentElement;
-            if (this.isDark) { root.classList.add('dark'); localStorage.setItem('theme', 'dark'); }
-            else { root.classList.remove('dark'); localStorage.setItem('theme', 'light'); }
+            document.documentElement.classList.toggle("dark", this.isDark);
+            localStorage.setItem(STORAGE_THEME, this.isDark ? "dark" : "light");
           },
           startPolling() {
             this.stopPolling();
             this.poller = setInterval(() => {
               if (this.adminToken && this.activeTab === "emails") this.loadList();
-            }, 5000);
+            }, 6000);
           },
-          stopPolling() { if (this.poller) { clearInterval(this.poller); this.poller = null; } },
-          async handleAuthError(res) {
-            if (res.status === 401) { this.clearAdminToken("密码不正确，请重试"); return true; }
-            return false;
+          stopPolling() {
+            if (this.poller) {
+              clearInterval(this.poller);
+              this.poller = null;
+            }
           },
-          clearAdminToken(message) {
-            this.adminToken = ""; this.adminError = message || "";
+          logout(message = "") {
+            this.adminToken = "";
+            this.adminError = message;
             document.cookie = "admin_token=; Path=/; Max-Age=0; SameSite=Lax";
             this.stopPolling();
+            window.location.href = "/";
+          },
+          async handleAuthError(res) {
+            if (res.status === 401) {
+              this.logout("管理令牌已失效，请重新登录");
+              return true;
+            }
+            return false;
+          },
+          showToast(title, message, tone = "success") {
+            this.toast = { show: true, tone, title, message };
+            clearTimeout(this._toastTimer);
+            this._toastTimer = setTimeout(() => {
+              this.toast.show = false;
+            }, 2600);
+          },
+          adminHeaders() {
+            return this.adminToken ? { Authorization: "Bearer " + this.adminToken } : {};
           },
           async requestJson(url, options = {}) {
             try {
               const res = await fetch(url, {
                 ...options,
-                headers: { ...this.adminHeaders(), ...(options.headers || {}) }
+                headers: {
+                  ...this.adminHeaders(),
+                  ...(options.headers || {})
+                }
               });
               if (await this.handleAuthError(res)) return null;
+              const payload = await res.json().catch(() => null);
               this.apiActive = true;
-              return res.json();
+              if (!res.ok) {
+                this.showToast("请求失败", payload?.message || "服务器未返回有效结果", "error");
+                return null;
+              }
+              return payload;
             } catch (err) {
               this.apiActive = false;
+              this.showToast("网络异常", "请检查本地 Worker 或网络连接后重试", "error");
               console.error("API Request failed:", err);
               return null;
             }
           },
           async loadList() {
             let url = "/admin/emails?page=" + this.page;
-            if (this.filterDomain) url += "&domain=" + this.filterDomain;
+            if (this.filterDomain) url += "&domain=" + encodeURIComponent(this.filterDomain);
+            if (this.searchQuery.trim()) url += "&q=" + encodeURIComponent(this.searchQuery.trim());
             const payload = await this.requestJson(url);
-            if (!payload || !payload.data) return;
+            if (!payload?.data) return;
             this.items = payload.data.items || [];
             this.total = payload.data.total || 0;
           },
           async loadDomains() {
             const payload = await this.requestJson("/admin/domains");
-            if (payload && payload.data) this.availableDomains = payload.data.domains || [];
+            if (!payload?.data) return;
+            this.availableDomains = payload.data.domains || [];
+          },
+          applyEmailFilters() {
+            this.page = 1;
+            this.loadList();
+          },
+          clearEmailFilters() {
+            this.searchQuery = "";
+            this.filterDomain = "";
+            this.page = 1;
+            this.loadList();
+          },
+          async nextPage() {
+            if (this.page >= this.totalPages) return;
+            this.page += 1;
+            await this.loadList();
+          },
+          async prevPage() {
+            if (this.page <= 1) return;
+            this.page -= 1;
+            await this.loadList();
+          },
+          parseResults(raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          },
+          hasResult(raw) {
+            return this.parseResults(raw).length > 0;
+          },
+          resultCount(raw) {
+            return this.parseResults(raw).length;
+          },
+          formatResult(raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              return Array.isArray(parsed) ? JSON.stringify(parsed, null, 2) : String(parsed ?? "");
+            } catch {
+              return raw || "";
+            }
+          },
+          async copyContent(text) {
+            try {
+              await navigator.clipboard.writeText(text);
+              this.showToast("已复制", "提取结果已经复制到剪贴板");
+            } catch (err) {
+              this.showToast("复制失败", "浏览器拒绝了剪贴板权限", "error");
+              console.error("Failed to copy:", err);
+            }
+          },
+          toggleResult(messageId) {
+            this.items = this.items.map((item) => (
+              item.message_id === messageId
+                ? { ...item, _expanded: !item._expanded }
+                : item
+            ));
+          },
+          formatTime(ts) {
+            return timeFormatter.format(new Date(ts));
           },
           async loadRules() {
             const payload = await this.requestJson("/admin/rules?page=" + this.rulesPage);
-            if (!payload || !payload.data) return;
+            if (!payload?.data) return;
             this.rules = payload.data.items || [];
             this.rulesTotal = payload.data.total || 0;
           },
-          async addRule() {
-            if (!this.newRule.pattern) return;
-            const payload = await this.requestJson("/admin/rules", {
-              method: "POST",
+          editRule(rule) {
+            this.editingRuleId = rule.id;
+            this.ruleForm = {
+              remark: rule.remark || "",
+              sender_filter: rule.sender_filter || "",
+              pattern: rule.pattern || ""
+            };
+            this.setActiveTab("rules");
+          },
+          resetRuleForm() {
+            this.editingRuleId = null;
+            this.ruleForm = { remark: "", sender_filter: "", pattern: "" };
+          },
+          async submitRule() {
+            if (!this.ruleForm.pattern.trim()) {
+              this.showToast("规则未保存", "内容匹配正则不能为空", "error");
+              return;
+            }
+            this.savingRule = true;
+            const url = this.editingRuleId ? "/admin/rules/" + this.editingRuleId : "/admin/rules";
+            const method = this.editingRuleId ? "PUT" : "POST";
+            const payload = await this.requestJson(url, {
+              method,
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(this.newRule)
+              body: JSON.stringify(this.ruleForm)
             });
+            this.savingRule = false;
             if (!payload) return;
-            this.newRule = { remark: "", sender_filter: "", pattern: "" };
-            this.rulesPage = 1; await this.loadRules();
+            this.showToast(
+              this.editingRuleId ? "规则已更新" : "规则已创建",
+              this.editingRuleId ? "新的匹配逻辑已生效" : "后续命中的邮件将按新规则提取"
+            );
+            this.rulesPage = 1;
+            this.resetRuleForm();
+            await this.loadRules();
           },
           async deleteRule(id) {
+            if (!window.confirm("确认删除这条规则吗？")) return;
             const payload = await this.requestJson("/admin/rules/" + id, { method: "DELETE" });
             if (!payload) return;
+            this.showToast("规则已删除", "这条提取规则不会再参与后续邮件解析");
             await this.loadRules();
-            if (this.rules.length === 0 && this.rulesPage > 1) { this.rulesPage -= 1; await this.loadRules(); }
+            if (this.rules.length === 0 && this.rulesPage > 1) {
+              this.rulesPage -= 1;
+              await this.loadRules();
+            }
+            if (this.editingRuleId === id) this.resetRuleForm();
           },
-          adminHeaders() { return this.adminToken ? { Authorization: "Bearer " + this.adminToken } : {}; },
-          async nextPage() { if (this.page < this.totalPages) { this.page += 1; await this.loadList(); } },
-          async prevPage() { if (this.page > 1) { this.page -= 1; await this.loadList(); } },
-          async nextRulesPage() { if (this.rulesPage < this.rulesTotalPages) { this.rulesPage += 1; await this.loadRules(); } },
-          async prevRulesPage() { if (this.rulesPage > 1) { this.rulesPage -= 1; await this.loadRules(); } },
+          async nextRulesPage() {
+            if (this.rulesPage >= this.rulesTotalPages) return;
+            this.rulesPage += 1;
+            await this.loadRules();
+          },
+          async prevRulesPage() {
+            if (this.rulesPage <= 1) return;
+            this.rulesPage -= 1;
+            await this.loadRules();
+          },
           async loadWhitelistData() {
             const payload = await this.requestJson("/admin/whitelist?page=" + this.whitelistPage);
-            if (!payload || !payload.data) return;
+            if (!payload?.data) return;
             this.whitelistItems = payload.data.items || [];
             this.whitelistTotal = payload.data.total || 0;
           },
-          async addWhitelistEntry() {
-            if (!this.newWhitelist.trim()) return;
-            const payload = await this.requestJson("/admin/whitelist", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sender_pattern: this.newWhitelist.trim() })
-            });
-            if (!payload) return;
-            this.newWhitelist = ""; this.whitelistPage = 1; await this.loadWhitelistData();
+          editWhitelist(item) {
+            this.editingWhitelistId = item.id;
+            this.whitelistForm = { sender_pattern: item.sender_pattern || "" };
+            this.setActiveTab("whitelist");
           },
-          async deleteWhitelistEntry(id) {
-            const payload = await this.requestJson("/admin/whitelist/" + id, { method: "DELETE" });
+          resetWhitelistForm() {
+            this.editingWhitelistId = null;
+            this.whitelistForm = { sender_pattern: "" };
+          },
+          async submitWhitelist() {
+            if (!this.whitelistForm.sender_pattern.trim()) {
+              this.showToast("白名单未保存", "发件人模式不能为空", "error");
+              return;
+            }
+            this.savingWhitelist = true;
+            const url = this.editingWhitelistId ? "/admin/whitelist/" + this.editingWhitelistId : "/admin/whitelist";
+            const method = this.editingWhitelistId ? "PUT" : "POST";
+            const payload = await this.requestJson(url, {
+              method,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(this.whitelistForm)
+            });
+            this.savingWhitelist = false;
             if (!payload) return;
+            this.showToast(
+              this.editingWhitelistId ? "白名单已更新" : "白名单已添加",
+              this.editingWhitelistId ? "发件人过滤规则已替换" : "后续邮件会先通过新模式过滤"
+            );
+            this.whitelistPage = 1;
+            this.resetWhitelistForm();
             await this.loadWhitelistData();
           },
-          async nextWhitelistPage() { if (this.whitelistPage < this.whitelistTotalPages) { this.whitelistPage += 1; await this.loadWhitelistData(); } },
-          async prevWhitelistPage() { if (this.whitelistPage > 1) { this.whitelistPage -= 1; await this.loadWhitelistData(); } },
-          toggleResult(messageId) { this.expandedResults[messageId] = !this.expandedResults[messageId]; },
-          async copyContent(text, messageId) {
-            try {
-              await navigator.clipboard.writeText(text);
-              this.copyStatus[messageId] = true;
-              setTimeout(() => { this.copyStatus[messageId] = false; }, 2000);
-            } catch (err) { console.error("Failed to copy:", err); }
+          async deleteWhitelistEntry(id) {
+            if (!window.confirm("确认删除这条白名单吗？")) return;
+            const payload = await this.requestJson("/admin/whitelist/" + id, { method: "DELETE" });
+            if (!payload) return;
+            this.showToast("白名单已删除", "发件人过滤列表已更新");
+            await this.loadWhitelistData();
+            if (this.whitelistItems.length === 0 && this.whitelistPage > 1) {
+              this.whitelistPage -= 1;
+              await this.loadWhitelistData();
+            }
+            if (this.editingWhitelistId === id) this.resetWhitelistForm();
           },
-          hasResult(raw) { try { const p = JSON.parse(raw); return Array.isArray(p) && p.length > 0; } catch { return false; } },
-          formatResult(raw) {
-            try {
-              const p = JSON.parse(raw);
-              return Array.isArray(p) ? JSON.stringify(p, null, 2) : String(p ?? "");
-            } catch { return raw || ""; }
+          async nextWhitelistPage() {
+            if (this.whitelistPage >= this.whitelistTotalPages) return;
+            this.whitelistPage += 1;
+            await this.loadWhitelistData();
           },
-          formatTime(ts) { return new Date(ts).toLocaleString(); }
+          async prevWhitelistPage() {
+            if (this.whitelistPage <= 1) return;
+            this.whitelistPage -= 1;
+            await this.loadWhitelistData();
+          },
+          async loadForwardingSettings() {
+            const payload = await this.requestJson("/admin/settings/forwarding");
+            if (!payload?.data) return;
+            this.forwardingForm = {
+              forwarding_mode: payload.data.forwarding_mode || "env",
+              forward_to: payload.data.forward_to || "",
+              env_forward_to: payload.data.env_forward_to || "",
+              effective_forward_to: payload.data.effective_forward_to || "",
+              forwarding_active: Boolean(payload.data.forwarding_active)
+            };
+          },
+          async saveForwardingSettings() {
+            this.savingForwarding = true;
+            const payload = await this.requestJson("/admin/settings/forwarding", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                forwarding_mode: this.forwardingForm.forwarding_mode,
+                forward_to: this.forwardingForm.forward_to
+              })
+            });
+            this.savingForwarding = false;
+            if (!payload?.data) return;
+            this.forwardingForm = {
+              forwarding_mode: payload.data.forwarding_mode || "env",
+              forward_to: payload.data.forward_to || "",
+              env_forward_to: payload.data.env_forward_to || "",
+              effective_forward_to: payload.data.effective_forward_to || "",
+              forwarding_active: Boolean(payload.data.forwarding_active)
+            };
+            this.showToast("转发设置已保存", this.forwardingForm.forwarding_active ? "新的原始邮件会按当前配置继续转发" : "后续邮件将不再自动转发");
+          }
         }
       }).mount("#app");
 
@@ -552,8 +1488,510 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
         const match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
         return match ? decodeURIComponent(match[1]) : "";
       }
+`;
+}
 
-    </script>
+export function renderHtml(pageSize, rulesPageSize) {
+  return `<!DOCTYPE html>
+<html lang="zh">
+${renderDocumentHead("Temp Mail Console")}
+  <body>
+    <div id="app" v-cloak class="app-shell">
+      <header class="shell topbar screen-enter" style="--stagger:0">
+        <div class="brand">
+          <div class="brand-kicker">Warm Signal Desk</div>
+          <div class="brand-mark">
+            <div class="brand-seal">${renderLogo()}</div>
+            <div>
+              <h1 class="brand-title">Temp Mail<br />Console</h1>
+            </div>
+          </div>
+          <p class="brand-subtitle">面向开发、QA 与自动化维护的邮件信号台。快速筛查收件事件、维护提取规则、配置原始邮件转发，并把调试成本压到最低。</p>
+        </div>
+        <div class="chrome-actions">
+          <div class="status-pill">
+            <span class="status-dot" :class="{ online: apiActive }"></span>
+            <span>{{ apiActive ? "控制台在线" : "请求异常" }}</span>
+          </div>
+          <button class="ghost-button" @click="toggleTheme">{{ isDark ? "切到亮色" : "切到暗色" }}</button>
+          <button class="ghost-button" @click="logout()">退出</button>
+        </div>
+      </header>
+
+      <main class="shell">
+        <section class="hero screen-enter" style="--stagger:1">
+          <article class="hero-copy-panel">
+            <div>
+              <div class="eyebrow">Operational Briefing</div>
+              <h2 class="hero-title">让收件、提取、转发和巡检变成一条短路径。</h2>
+            </div>
+            <p class="panel-copy">所有页面围绕“快速判断”和“即时调整”设计：邮件是否命中、规则是否正确、白名单是否放行、转发是否生效，都应该在一个视图内得到答案。</p>
+            <div class="hero-note">
+              <span class="mini-pill">{{ forwardingForm.forwarding_active ? "转发已启用" : "转发未启用" }}</span>
+              <span class="mini-pill">{{ filterDomain ? "正在筛选域名：" + filterDomain : "当前查看全部域名" }}</span>
+              <span class="mini-pill">{{ searchQuery ? "搜索：" + searchQuery : "支持按主题 / 发件人 / 收件人 / 结果搜索" }}</span>
+            </div>
+            <div class="hero-actions">
+              <button class="solid-button" @click="setActiveTab('forwarding')">配置 QQ 转发</button>
+              <button class="soft-button" @click="setActiveTab('rules')">维护规则</button>
+            </div>
+          </article>
+
+          <article class="hero-metrics">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-label">Inbox</div>
+                <div class="metric-value">{{ total }}</div>
+                <div class="metric-copy">当前筛选条件下的邮件总数</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Rules</div>
+                <div class="metric-value">{{ rulesTotal }}</div>
+                <div class="metric-copy">可用提取规则，支持创建与更新</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Allowlist</div>
+                <div class="metric-value">{{ whitelistTotal }}</div>
+                <div class="metric-copy">发件人放行模式数量</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Forwarding</div>
+                <div class="metric-value">{{ forwardingForm.forwarding_active ? "ON" : "OFF" }}</div>
+                <div class="metric-copy">{{ effectiveForwardTarget || "没有生效中的目标邮箱" }}</div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <nav class="tab-rail screen-enter" style="--stagger:2" aria-label="主导航">
+          <button class="tab-button" :class="{ active: activeTab === 'emails' }" @click="setActiveTab('emails')">邮件记录</button>
+          <button class="tab-button" :class="{ active: activeTab === 'rules' }" @click="setActiveTab('rules')">命中规则</button>
+          <button class="tab-button" :class="{ active: activeTab === 'whitelist' }" @click="setActiveTab('whitelist')">发件人白名单</button>
+          <button class="tab-button" :class="{ active: activeTab === 'forwarding' }" @click="setActiveTab('forwarding')">转发设置</button>
+          <button class="tab-button" :class="{ active: activeTab === 'api' }" @click="setActiveTab('api')">API</button>
+        </nav>
+
+        <div v-if="adminError" class="inline-alert">{{ adminError }}</div>
+
+        <section v-if="activeTab === 'emails'" class="workspace screen-enter" style="--stagger:3">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h3 class="panel-title">收件箱巡检</h3>
+                <p class="panel-subtitle">按域名和关键字联动筛查最近邮件。搜索会同时命中主题、发件人、收件人和提取结果，适合快速定位验证码、注册链接或特定发件源。</p>
+              </div>
+              <div class="stat-line">
+                <span>第 {{ page }} / {{ totalPages }} 页</span>
+                <span>总计 {{ total }} 封</span>
+              </div>
+            </div>
+
+            <div class="toolbar">
+              <div class="search-field">
+                <label class="field-label" for="email-search">搜索邮件</label>
+                <input id="email-search" class="field-input" v-model="searchQuery" @keydown.enter="applyEmailFilters" placeholder="主题、发件人、收件人、提取值" />
+              </div>
+              <div class="select-field">
+                <label class="field-label" for="domain-filter">域名筛选</label>
+                <select id="domain-filter" class="field-select" v-model="filterDomain" @change="applyEmailFilters">
+                  <option value="">全部域名</option>
+                  <option v-for="domain in availableDomains" :key="domain" :value="domain">{{ domain }}</option>
+                </select>
+              </div>
+              <div class="toolbar-actions">
+                <button class="solid-button" @click="applyEmailFilters">应用筛选</button>
+                <button class="ghost-button" @click="clearEmailFilters">清空</button>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div v-if="items.length === 0" class="empty-state">
+                <div class="eyebrow">Inbox Empty</div>
+                <h4 class="empty-title">当前筛选下没有邮件。</h4>
+                <p class="empty-copy">可以先清空搜索条件，也可以等待新的路由邮件进入。若你正在调试 Cloudflare Email Routing，建议同时确认白名单和目标域名配置。</p>
+              </div>
+
+              <div v-else class="message-feed">
+                <article v-for="item in items" :key="item.message_id" class="message-card">
+                  <button class="message-summary" @click="toggleResult(item.message_id)">
+                    <div class="message-meta">
+                      <span class="tag" :class="hasResult(item.extracted_json) ? 'positive' : 'neutral'">
+                        {{ hasResult(item.extracted_json) ? ('命中 ' + resultCount(item.extracted_json) + ' 条') : '未命中' }}
+                      </span>
+                      <span class="tag attention" v-if="item.to_address && item.to_address.includes(',')">多收件人</span>
+                    </div>
+                    <h4 class="subject">{{ item.subject || "（无主题）" }}</h4>
+                    <div class="message-grid">
+                      <div><strong>发件人</strong><br />{{ item.from_address }}</div>
+                      <div><strong>收件人</strong><br />{{ item.to_address }}</div>
+                      <div><strong>接收时间</strong><br />{{ formatTime(item.received_at) }}</div>
+                      <div><strong>状态</strong><br />{{ item._expanded ? "收起详情" : "展开详情" }}</div>
+                    </div>
+                  </button>
+
+                  <div v-if="item._expanded" class="message-details">
+                    <div class="result-shell" v-if="hasResult(item.extracted_json)">
+                      <div class="list-head">
+                        <div>
+                          <div class="field-label">提取结果</div>
+                          <div class="microcopy">按规则分组展示本封邮件命中的内容。</div>
+                        </div>
+                        <button class="chip-button" @click="copyContent(formatResult(item.extracted_json))">复制 JSON</button>
+                      </div>
+                      <div class="result-list">
+                        <div class="result-item" v-for="result in parseResults(item.extracted_json)" :key="result.rule_id + '-' + result.value">
+                          <strong>{{ result.remark || ('规则 #' + result.rule_id) }}</strong>
+                          <div class="mono">{{ result.value }}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="note-shell" v-else>
+                      <div class="field-label">没有命中结果</div>
+                      <p class="microcopy">这封邮件通过了白名单，但没有命中任何提取规则。可以去“命中规则”页新增或调整正则。</p>
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <div class="pager">
+                <button class="ghost-button" :disabled="page === 1" @click="prevPage">上一页</button>
+                <button class="ghost-button" @click="loadList">刷新</button>
+                <button class="ghost-button" :disabled="page >= totalPages" @click="nextPage">下一页</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section v-if="activeTab === 'rules'" class="workspace screen-enter" style="--stagger:3">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h3 class="panel-title">规则控制台</h3>
+                <p class="panel-subtitle">规则现在支持创建、查看、更新和删除。创建前会校验正则合法性，避免无效表达式被写入后在运行时静默跳过。</p>
+              </div>
+              <div class="stat-line">
+                <span>第 {{ rulesPage }} / {{ rulesTotalPages }} 页</span>
+                <span>总计 {{ rulesTotal }} 条</span>
+              </div>
+            </div>
+
+            <div class="split-layout">
+              <div class="form-card">
+                <div>
+                  <div class="eyebrow">{{ editingRuleId ? "Edit Rule" : "Create Rule" }}</div>
+                  <h4 class="panel-title">{{ editingRuleId ? "更新现有规则" : "添加新的提取规则" }}</h4>
+                  <p class="panel-copy">支持针对指定发件人范围配置内容正则。发件人过滤可以使用逗号或换行分隔多个模式。</p>
+                </div>
+
+                <label class="form-field">
+                  <span class="field-label">备注名称</span>
+                  <input class="field-input" v-model="ruleForm.remark" placeholder="例如：验证码 / 激活链接" />
+                </label>
+
+                <label class="form-field">
+                  <span class="field-label">发件人过滤规则</span>
+                  <textarea class="field-textarea" v-model="ruleForm.sender_filter" placeholder="例如：.*@example\\.com 或多行模式"></textarea>
+                </label>
+
+                <label class="form-field">
+                  <span class="field-label">内容匹配正则</span>
+                  <textarea class="field-textarea" v-model="ruleForm.pattern" placeholder="例如：\\b\\d{6}\\b"></textarea>
+                </label>
+
+                <div class="form-actions">
+                  <button class="solid-button" :disabled="savingRule" @click="submitRule">{{ savingRule ? "保存中..." : (editingRuleId ? "更新规则" : "创建规则") }}</button>
+                  <button class="ghost-button" v-if="editingRuleId" @click="resetRuleForm">取消编辑</button>
+                </div>
+              </div>
+
+              <div class="collection-card">
+                <div class="list-head">
+                  <div>
+                    <div class="eyebrow">Rule Inventory</div>
+                    <h4 class="panel-title">现有规则</h4>
+                  </div>
+                  <div class="pager">
+                    <button class="ghost-button" :disabled="rulesPage === 1" @click="prevRulesPage">上一页</button>
+                    <button class="ghost-button" :disabled="rulesPage >= rulesTotalPages" @click="nextRulesPage">下一页</button>
+                  </div>
+                </div>
+
+                <div v-if="rules.length === 0" class="empty-state">
+                  <div class="eyebrow">No Rules</div>
+                  <h4 class="empty-title">还没有提取规则。</h4>
+                  <p class="empty-copy">先创建一条正则，让系统能从邮件正文里抓到验证码、注册链接或其它关键信息。</p>
+                </div>
+
+                <div v-else class="rules-feed">
+                  <article v-for="rule in rules" :key="rule.id" class="resource-card">
+                    <div class="resource-meta">
+                      <span class="tag attention">规则 #{{ rule.id }}</span>
+                      <span class="tag" v-if="rule.sender_filter">定向发件人</span>
+                      <span class="tag neutral" v-else>作用于全部发件人</span>
+                    </div>
+                    <h4 class="resource-title">{{ rule.remark || "未命名规则" }}</h4>
+                    <p class="resource-copy"><strong>发件人：</strong>{{ rule.sender_filter || "全部发件人" }}</p>
+                    <div class="code-block">{{ rule.pattern }}</div>
+                    <div class="inline-actions">
+                      <button class="soft-button" @click="editRule(rule)">编辑</button>
+                      <button class="ghost-button" @click="deleteRule(rule.id)">删除</button>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section v-if="activeTab === 'whitelist'" class="workspace screen-enter" style="--stagger:3">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h3 class="panel-title">发件人白名单</h3>
+                <p class="panel-subtitle">白名单为空时会接受所有发件人；一旦添加模式，系统只处理匹配的发信源。现在支持创建、编辑和删除，且会在保存前做正则校验。</p>
+              </div>
+              <div class="stat-line">
+                <span>第 {{ whitelistPage }} / {{ whitelistTotalPages }} 页</span>
+                <span>总计 {{ whitelistTotal }} 条</span>
+              </div>
+            </div>
+
+            <div class="split-layout">
+              <div class="form-card">
+                <div>
+                  <div class="eyebrow">{{ editingWhitelistId ? "Edit Allowlist" : "Create Allowlist" }}</div>
+                  <h4 class="panel-title">{{ editingWhitelistId ? "更新白名单模式" : "添加新的白名单模式" }}</h4>
+                  <p class="panel-copy">适合只接受指定服务商、测试域或通知地址。推荐用一条模式覆盖一类来源，便于后续维护。</p>
+                </div>
+
+                <label class="form-field">
+                  <span class="field-label">发件人模式</span>
+                  <textarea class="field-textarea" v-model="whitelistForm.sender_pattern" placeholder="例如：.*@qq\\.com"></textarea>
+                </label>
+
+                <div class="form-actions">
+                  <button class="solid-button" :disabled="savingWhitelist" @click="submitWhitelist">{{ savingWhitelist ? "保存中..." : (editingWhitelistId ? "更新白名单" : "添加白名单") }}</button>
+                  <button class="ghost-button" v-if="editingWhitelistId" @click="resetWhitelistForm">取消编辑</button>
+                </div>
+              </div>
+
+              <div class="collection-card">
+                <div class="list-head">
+                  <div>
+                    <div class="eyebrow">Allowlist Inventory</div>
+                    <h4 class="panel-title">放行模式列表</h4>
+                  </div>
+                  <div class="pager">
+                    <button class="ghost-button" :disabled="whitelistPage === 1" @click="prevWhitelistPage">上一页</button>
+                    <button class="ghost-button" :disabled="whitelistPage >= whitelistTotalPages" @click="nextWhitelistPage">下一页</button>
+                  </div>
+                </div>
+
+                <div v-if="whitelistItems.length === 0" class="empty-state">
+                  <div class="eyebrow">Open Gate</div>
+                  <h4 class="empty-title">当前没有白名单限制。</h4>
+                  <p class="empty-copy">这代表所有发件人都会进入规则匹配流程。如果你只需要处理某些平台或测试域邮件，建议尽快添加白名单。</p>
+                </div>
+
+                <div v-else class="whitelist-feed">
+                  <article v-for="item in whitelistItems" :key="item.id" class="resource-card">
+                    <div class="resource-meta">
+                      <span class="tag attention">模式 #{{ item.id }}</span>
+                      <span class="tag neutral">正则匹配</span>
+                    </div>
+                    <h4 class="resource-title">{{ item.sender_pattern }}</h4>
+                    <p class="resource-copy">匹配任意发件人地址时，该邮件才会进入规则提取和可选转发流程。</p>
+                    <div class="inline-actions">
+                      <button class="soft-button" @click="editWhitelist(item)">编辑</button>
+                      <button class="ghost-button" @click="deleteWhitelistEntry(item.id)">删除</button>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section v-if="activeTab === 'forwarding'" class="workspace screen-enter" style="--stagger:3">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h3 class="panel-title">原始邮件转发设置</h3>
+                <p class="panel-subtitle">新增的设置页支持在不改部署配置的情况下切换转发模式。你可以继续使用部署时的 <code>FORWARD_TO</code>，也可以在后台改成一个 QQ 邮箱地址，或者直接停用转发。</p>
+              </div>
+              <div class="stat-line">
+                <span>{{ forwardingModeLabel }}</span>
+                <span>{{ forwardingForm.forwarding_active ? "已生效" : "未生效" }}</span>
+              </div>
+            </div>
+
+            <div class="settings-grid">
+              <div class="form-card">
+                <div>
+                  <div class="eyebrow">Forwarding Strategy</div>
+                  <h4 class="panel-title">选择邮件转发模式</h4>
+                  <p class="panel-copy">Cloudflare Email Workers 仍要求目标邮箱先在 Email Routing 的 Destination addresses 中完成验证。QQ 邮箱可以直接用 <code>你的QQ号@qq.com</code> 作为目标地址。</p>
+                </div>
+
+                <div class="mode-switch" role="tablist" aria-label="转发模式">
+                  <button class="mode-option" :class="{ active: forwardingForm.forwarding_mode === 'env' }" @click="forwardingForm.forwarding_mode = 'env'">跟随默认值</button>
+                  <button class="mode-option" :class="{ active: forwardingForm.forwarding_mode === 'custom' }" @click="forwardingForm.forwarding_mode = 'custom'">自定义邮箱</button>
+                  <button class="mode-option" :class="{ active: forwardingForm.forwarding_mode === 'disabled' }" @click="forwardingForm.forwarding_mode = 'disabled'">停用转发</button>
+                </div>
+
+                <label class="form-field">
+                  <span class="field-label">自定义目标邮箱</span>
+                  <input class="field-input" v-model="forwardingForm.forward_to" :disabled="forwardingForm.forwarding_mode !== 'custom'" placeholder="例如：123456789@qq.com" />
+                </label>
+
+                <div class="status-shell">
+                  <div class="field-label">当前解析结果</div>
+                  <div class="key-points">
+                    <div class="key-point">
+                      <strong>部署默认值</strong>
+                      <span class="microcopy">{{ forwardingForm.env_forward_to || "未设置 FORWARD_TO" }}</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>当前生效目标</strong>
+                      <span class="microcopy">{{ effectiveForwardTarget || "没有生效中的转发地址" }}</span>
+                    </div>
+                    <div class="key-point">
+                      <strong>QQ 邮箱提示</strong>
+                      <span class="microcopy">先到 Cloudflare Email Routing 验证 QQ 地址，再在这里保存；只有通过白名单的邮件会继续转发。</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-actions">
+                  <button class="solid-button" :disabled="savingForwarding" @click="saveForwardingSettings">{{ savingForwarding ? "保存中..." : "保存转发设置" }}</button>
+                </div>
+              </div>
+
+              <div class="collection-card">
+                <div class="list-head">
+                  <div>
+                    <div class="eyebrow">Operational Notes</div>
+                    <h4 class="panel-title">转发生效边界</h4>
+                  </div>
+                  <span class="tag" :class="forwardingForm.forwarding_active ? 'positive' : 'neutral'">{{ forwardingForm.forwarding_active ? "Active" : "Idle" }}</span>
+                </div>
+
+                <div class="key-points">
+                  <div class="key-point">
+                    <strong>只转发通过白名单的邮件</strong>
+                    <span class="microcopy">未命中白名单的邮件会在入口阶段直接忽略，也不会进入转发逻辑。</span>
+                  </div>
+                  <div class="key-point">
+                    <strong>模式为“跟随默认值”时向下兼容</strong>
+                    <span class="microcopy">如果部署里已经设置了 <code>FORWARD_TO</code>，系统会直接沿用；如果没有，则不会进行任何转发。</span>
+                  </div>
+                  <div class="key-point">
+                    <strong>模式为“自定义邮箱”时优先生效</strong>
+                    <span class="microcopy">适合在不重新部署 Worker 的情况下，临时改成一个 QQ 邮箱做人工巡检。</span>
+                  </div>
+                  <div class="key-point">
+                    <strong>转发失败不会阻断入库</strong>
+                    <span class="microcopy">即使 Cloudflare 拒绝转发，邮件仍会照常解析并写入 D1，方便继续排查。</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section v-if="activeTab === 'api'" class="workspace screen-enter" style="--stagger:3">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h3 class="panel-title">公开 API 速览</h3>
+                <p class="panel-subtitle">当前公开接口保持简单：传入收件地址，取回最近一封邮件的命中结果。这个页签更强调“复制即用”，适合给自动化脚本和外部系统对接。</p>
+              </div>
+            </div>
+
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="list-head">
+                  <div>
+                    <div class="eyebrow">Auth</div>
+                    <h4 class="panel-title">Bearer 鉴权</h4>
+                  </div>
+                </div>
+                <pre class="code-block">Authorization: Bearer &lt;API_TOKEN&gt;</pre>
+
+                <div class="list-head">
+                  <div>
+                    <div class="eyebrow">Request</div>
+                    <h4 class="panel-title">查询最新命中结果</h4>
+                  </div>
+                </div>
+                <pre class="code-block">GET /api/emails/latest?address=target@example.com</pre>
+
+                <div class="list-head">
+                  <div>
+                    <div class="eyebrow">Query</div>
+                    <h4 class="panel-title">参数定义</h4>
+                  </div>
+                </div>
+                <div class="key-points">
+                  <div class="key-point">
+                    <strong>address</strong>
+                    <span class="microcopy">必填。要查询的收件人邮箱地址，系统会返回最近一封匹配到该地址的邮件结果。</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="list-head">
+                  <div>
+                    <div class="eyebrow">Response</div>
+                    <h4 class="panel-title">返回体示例</h4>
+                  </div>
+                </div>
+                <pre class="code-block">{
+  "code": 200,
+  "data": {
+    "from_address": "noreply@example.com",
+    "to_address": "demo@your-domain.com",
+    "received_at": 1741881600000,
+    "results": [
+      {
+        "rule_id": 1,
+        "value": "123456",
+        "remark": "验证码"
+      }
+    ]
+  }
+}</pre>
+
+                <div class="key-points">
+                  <div class="key-point">
+                    <strong>from_address / to_address</strong>
+                    <span class="microcopy">邮件基础元数据，方便对接系统判断来源与目的地。</span>
+                  </div>
+                  <div class="key-point">
+                    <strong>received_at</strong>
+                    <span class="microcopy">13 位毫秒时间戳，适合脚本直接排序或做超时判断。</span>
+                  </div>
+                  <div class="key-point">
+                    <strong>results</strong>
+                    <span class="microcopy">命中结果数组。每项包含规则 ID、实际提取值和备注名称。</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <div v-if="toast.show" class="toast" :class="toast.tone" aria-live="polite">
+        <strong>{{ toast.title }}</strong>
+        <div>{{ toast.message }}</div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>${renderAppScript(pageSize, rulesPageSize)}</script>
   </body>
 </html>`;
 }
@@ -561,57 +1999,70 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
 export function renderAuthHtml() {
   return `<!DOCTYPE html>
 <html lang="zh">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Temp Mail Console - 登录</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { darkMode: 'class' };
-      (function() {
-        const theme = localStorage.getItem('theme');
-        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      })();
-    </script>
-    <style>body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }</style>
-  </head>
-  <body class="bg-slate-50 dark:bg-[#09090b] text-slate-600 dark:text-slate-200 antialiased flex items-center justify-center min-h-screen selection:bg-indigo-500/30 transition-colors duration-300">
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_center,rgba(99,102,241,0.05),transparent_50%)] dark:bg-[radial-gradient(circle_at_top_center,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none"></div>
-    <div class="w-full max-w-sm p-8 rounded-[1.5rem] bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 backdrop-blur-xl shadow-xl dark:shadow-2xl relative">
-      <div class="flex items-center justify-between mb-8">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 flex border border-slate-200 dark:border-white/10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-inner shadow-white/20">
-            <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+${renderDocumentHead("Temp Mail Console - 登录")}
+  <body>
+    <div class="auth-shell">
+      <div class="auth-grid">
+        <section class="auth-story screen-enter" style="--stagger:0">
+          <div class="auth-story-content">
+            <div>
+              <div class="brand-kicker">Entry Console</div>
+              <div class="brand-mark">
+                <div class="brand-seal">${renderLogo()}</div>
+                <div>
+                  <h1 class="auth-title">进入你的邮件信号台。</h1>
+                </div>
+              </div>
+              <p class="panel-copy">这不是普通后台，而是一张用于快速判断邮件状态的工作台。你可以在这里检查命中结果、编辑规则、维护白名单，并把原始邮件转发到已验证的 QQ 邮箱做人工巡检。</p>
+            </div>
+
+            <div class="key-points">
+              <div class="key-point">
+                <strong>快速排查</strong>
+                <span class="microcopy">查看最近邮件、搜索命中内容、确认收件域与发件源是否正确。</span>
+              </div>
+              <div class="key-point">
+                <strong>即时调整</strong>
+                <span class="microcopy">直接编辑规则与白名单，不需要离开控制台再改配置文件。</span>
+              </div>
+              <div class="key-point">
+                <strong>保持人工兜底</strong>
+                <span class="microcopy">可选启用原始邮件转发，把关键邮件镜像到 QQ 邮箱做复核。</span>
+              </div>
+            </div>
           </div>
-          <span class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Temp Mail Console</span>
-        </div>
-        <button id="theme-toggle" class="p-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.05] text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-all shadow-sm">
-          <svg id="moon" class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-          <svg id="sun" class="w-4 h-4 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-        </button>
+        </section>
+
+        <section class="auth-card screen-enter" style="--stagger:1">
+          <div class="auth-card-content">
+            <div class="auth-foot">
+              <span class="eyebrow">Admin Access</span>
+              <button id="theme-toggle" class="ghost-button" type="button">切换主题</button>
+            </div>
+
+            <div>
+              <h2 class="panel-title">输入管理员令牌</h2>
+              <p class="panel-copy">登录页会先调用管理接口校验令牌，成功后写入 <code>admin_token</code> Cookie，再自动回到主页。</p>
+            </div>
+
+            <form class="auth-form" onsubmit="return false;">
+              <label class="form-field">
+                <span class="field-label">ADMIN_TOKEN</span>
+                <input id="admin-token" class="field-input" type="password" placeholder="请输入后台访问令牌" autocomplete="current-password" />
+              </label>
+              <div id="admin-error" class="auth-error">密码不正确，请重试。</div>
+              <button id="admin-submit" class="solid-button" type="button">进入控制台</button>
+            </form>
+
+            <div class="auth-foot">
+              <span>支持亮色 / 暗色主题，登录后状态保持一致。</span>
+              <a href="https://github.com/beyoug/temp-mail-console" target="_blank" rel="noreferrer">GitHub</a>
+            </div>
+          </div>
+        </section>
       </div>
-      <h1 class="text-xl font-semibold text-slate-900 dark:text-white tracking-tight mb-1">控制台访问</h1>
-      <p class="text-[13px] text-slate-500 dark:text-slate-400 mb-8">请输入访问令牌以继续</p>
-      <form class="space-y-4" onsubmit="return false;">
-        <input
-          id="admin-token"
-          type="password"
-          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-[13px]"
-          placeholder="管理令牌"
-          autocomplete="current-password"
-        />
-        <div id="admin-error" class="text-[12px] text-red-500 dark:text-red-400 hidden">密码不正确，请重试</div>
-        <button
-          id="admin-submit"
-          type="button"
-          class="w-full py-2.5 rounded-xl bg-indigo-600 dark:bg-white text-white dark:text-slate-900 font-medium text-[13px] hover:bg-indigo-700 dark:hover:bg-slate-200 transition-all shadow-lg shadow-indigo-500/10 dark:shadow-white/5"
-        >安全登录</button>
-      </form>
     </div>
+
     <script>
       const input = document.getElementById("admin-token");
       const error = document.getElementById("admin-error");
@@ -620,31 +2071,43 @@ export function renderAuthHtml() {
 
       if (input) input.focus();
 
-      themeToggle.addEventListener("click", () => {
-        const isDark = document.documentElement.classList.toggle("dark");
-        localStorage.setItem("theme", isDark ? "dark" : "light");
+      themeToggle?.addEventListener("click", () => {
+        const nextDark = !document.documentElement.classList.contains("dark");
+        document.documentElement.classList.toggle("dark", nextDark);
+        localStorage.setItem("tmc-theme", nextDark ? "dark" : "light");
       });
 
-      const setError = (message) => {
+      function showError(message) {
         if (!error) return;
         error.textContent = message;
-        error.classList.remove("hidden");
-      };
+        error.classList.add("show");
+      }
 
-      const attempt = async () => {
+      async function attempt() {
         const token = input ? input.value.trim() : "";
-        if (!token) { setError("请输入访问密码"); return; }
+        if (!token) {
+          showError("请输入访问令牌。");
+          return;
+        }
         const res = await fetch("/admin/emails?page=1", {
           headers: { Authorization: "Bearer " + token }
         });
-        if (res.status === 401) { setError("密码不正确，请重试"); return; }
-        if (!res.ok) { setError("登录失败，请重试"); return; }
+        if (res.status === 401) {
+          showError("密码不正确，请重试。");
+          return;
+        }
+        if (!res.ok) {
+          showError("登录失败，请稍后再试。");
+          return;
+        }
         document.cookie = "admin_token=" + encodeURIComponent(token) + "; Path=/; SameSite=Lax";
         window.location.href = "/";
-      };
+      }
 
-      if (submit) submit.addEventListener("click", attempt);
-      if (input) input.addEventListener("keydown", (e) => { if (e.key === "Enter") attempt(); });
+      submit?.addEventListener("click", attempt);
+      input?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") attempt();
+      });
     </script>
   </body>
 </html>`;

@@ -9,3 +9,6 @@ dist/
 coverage/
 tmp/
 .idea/
+.ace-tool/
+.codex-tasks/
+.impeccable.md

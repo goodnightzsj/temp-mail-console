@@ -15,6 +15,32 @@ export function safeParseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
+export function normalizeText(value, maxLength = 200) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+export function isValidEmailAddress(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (!email || email.length > 254) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export function isValidRegexPattern(pattern, flags = "") {
+  try {
+    new RegExp(pattern, flags);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function splitPatternList(value) {
+  return String(value || "")
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 /**
  * 解析 JSON body。
  * 返回: { ok: true, data } 或 { ok: false, error }

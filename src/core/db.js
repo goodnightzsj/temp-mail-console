@@ -23,6 +23,20 @@ function mapWhitelist(row) {
   };
 }
 
+function mapSettings(row) {
+  return {
+    forwarding_mode: String(row.forwarding_mode || "env"),
+    forward_to: row.forward_to ? String(row.forward_to) : "",
+    updated_at: row.updated_at ? Number(row.updated_at) : 0
+  };
+}
+
+async function ensureSettingsRow(db) {
+  await db.prepare(
+    "INSERT OR IGNORE INTO settings (id, forwarding_mode, forward_to, updated_at) VALUES (1, 'env', NULL, ?)"
+  ).bind(Date.now()).run();
+}
+
 /**
  * 获取所有解析规则 (供逻辑层使用)
  */
@@ -52,25 +66,37 @@ export async function getLatestEmail(db, address) {
 /**
  * 分页获取邮件记录 (支持域名过滤)
  */
-export async function getEmails(db, page, pageSize, domain = null) {
+export async function getEmails(db, page, pageSize, domain = null, search = null) {
   const offset = (page - 1) * pageSize;
-  let query = "SELECT message_id, from_address, to_address, subject, extracted_json, received_at FROM emails";
+  let listQuery = "SELECT message_id, from_address, to_address, subject, extracted_json, received_at FROM emails";
   let countQuery = "SELECT COUNT(1) as total FROM emails";
-  const params = [pageSize, offset];
-  const countParams = [];
+  const filters = [];
+  const bindParams = [];
 
   if (domain) {
     const domainPattern = `%@${domain}%`;
-    query += " WHERE to_address LIKE ?";
-    countQuery += " WHERE to_address LIKE ?";
-    params.unshift(domainPattern);
-    countParams.push(domainPattern);
+    filters.push("to_address LIKE ?");
+    bindParams.push(domainPattern);
   }
 
-  query += " ORDER BY received_at DESC LIMIT ? OFFSET ?";
+  if (search) {
+    const textPattern = `%${search}%`;
+    filters.push("(subject LIKE ? OR from_address LIKE ? OR to_address LIKE ? OR extracted_json LIKE ?)");
+    bindParams.push(textPattern, textPattern, textPattern, textPattern);
+  }
+
+  if (filters.length > 0) {
+    const whereClause = ` WHERE ${filters.join(" AND ")}`;
+    listQuery += whereClause;
+    countQuery += whereClause;
+  }
+
+  listQuery += " ORDER BY received_at DESC LIMIT ? OFFSET ?";
+  const params = [...bindParams, pageSize, offset];
+  const countParams = [...bindParams];
 
   const [list, countRow] = await Promise.all([
-    db.prepare(query).bind(...params).all(),
+    db.prepare(listQuery).bind(...params).all(),
     db.prepare(countQuery).bind(...countParams).first()
   ]);
   return { items: list.results, total: countRow?.total || 0 };
@@ -115,6 +141,12 @@ export async function createRule(db, { remark, sender_filter, pattern }) {
     .run();
 }
 
+export async function updateRule(db, id, { remark, sender_filter, pattern }) {
+  return db.prepare("UPDATE rules SET remark = ?, sender_filter = ?, pattern = ? WHERE id = ?")
+    .bind(remark || null, sender_filter || null, pattern, id)
+    .run();
+}
+
 /**
  * 删除规则
  */
@@ -142,6 +174,12 @@ export async function getWhitelistPaged(db, page, pageSize) {
 export async function createWhitelistEntry(db, pattern) {
   return db.prepare("INSERT INTO whitelist (sender_pattern, created_at) VALUES (?, ?)")
     .bind(pattern, Date.now())
+    .run();
+}
+
+export async function updateWhitelistEntry(db, id, pattern) {
+  return db.prepare("UPDATE whitelist SET sender_pattern = ? WHERE id = ?")
+    .bind(pattern, id)
     .run();
 }
 
@@ -174,4 +212,27 @@ export async function saveEmail(db, data) {
 export async function clearExpiredEmails(db, maxHours = 48) {
   const threshold = Date.now() - (maxHours * 60 * 60 * 1000);
   return db.prepare("DELETE FROM emails WHERE received_at < ?").bind(threshold).run();
+}
+
+export async function getForwardingSettings(db) {
+  await ensureSettingsRow(db);
+  const row = await db.prepare("SELECT forwarding_mode, forward_to, updated_at FROM settings WHERE id = 1").first();
+  return row ? mapSettings(row) : { forwarding_mode: "env", forward_to: "", updated_at: 0 };
+}
+
+export async function updateForwardingSettings(db, { forwarding_mode, forward_to }) {
+  await ensureSettingsRow(db);
+  return db.prepare("UPDATE settings SET forwarding_mode = ?, forward_to = ?, updated_at = ? WHERE id = 1")
+    .bind(forwarding_mode, forward_to || null, Date.now())
+    .run();
+}
+
+export function resolveEffectiveForwardTarget(settings, envForwardTo = "") {
+  const mode = String(settings?.forwarding_mode || "env");
+  const customTarget = String(settings?.forward_to || "").trim().toLowerCase();
+  const envTarget = String(envForwardTo || "").trim().toLowerCase();
+
+  if (mode === "disabled") return "";
+  if (mode === "custom") return customTarget;
+  return envTarget;
 }
