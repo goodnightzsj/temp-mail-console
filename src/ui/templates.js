@@ -31,6 +31,12 @@ const APP_STYLE = `
         --teal-soft: oklch(0.93 0.028 205);
         --success: oklch(0.63 0.14 150);
         --danger: oklch(0.61 0.19 28);
+        --control-surface: color-mix(in oklab, var(--panel) 88%, white 12%);
+        --control-surface-strong: color-mix(in oklab, var(--panel-strong) 84%, white 16%);
+        --control-overlay: rgba(255, 255, 255, 0.28);
+        --control-shadow: 0 10px 24px rgba(58, 41, 21, 0.08);
+        --control-focus: color-mix(in oklab, var(--accent) 18%, transparent);
+        --overlay: rgba(35, 26, 16, 0.18);
         --shadow: 0 20px 60px rgba(58, 41, 21, 0.08);
         --shadow-soft: 0 12px 28px rgba(58, 41, 21, 0.06);
         --radius-xl: 28px;
@@ -60,6 +66,12 @@ const APP_STYLE = `
         --teal-soft: color-mix(in oklab, var(--teal) 16%, transparent);
         --success: oklch(0.77 0.12 152);
         --danger: oklch(0.72 0.17 30);
+        --control-surface: color-mix(in oklab, var(--panel) 92%, black 8%);
+        --control-surface-strong: color-mix(in oklab, var(--panel-strong) 90%, black 10%);
+        --control-overlay: rgba(255, 255, 255, 0.08);
+        --control-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+        --control-focus: color-mix(in oklab, var(--accent) 24%, transparent);
+        --overlay: rgba(2, 4, 7, 0.48);
         --shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
         --shadow-soft: 0 16px 36px rgba(0, 0, 0, 0.26);
       }
@@ -122,6 +134,7 @@ const APP_STYLE = `
       textarea,
       select {
         font: inherit;
+        appearance: none;
       }
 
       input,
@@ -135,6 +148,13 @@ const APP_STYLE = `
 
       button {
         cursor: pointer;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible {
+        outline: none;
       }
 
       a {
@@ -269,9 +289,20 @@ const APP_STYLE = `
       .chip-button {
         position: relative;
         z-index: 2;
-        border: 0;
-        border-radius: 999px;
+        isolation: isolate;
+        min-height: 2.95rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        border: 1px solid transparent;
+        border-radius: 16px;
         padding: 0.82rem 1.12rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        line-height: 1;
+        box-shadow: var(--control-shadow);
+        backdrop-filter: blur(14px);
         transition:
           transform 180ms var(--ease-out),
           background-color 180ms var(--ease-out),
@@ -281,23 +312,56 @@ const APP_STYLE = `
           opacity 180ms var(--ease-out);
       }
 
+      .ghost-button::before,
+      .solid-button::before,
+      .soft-button::before,
+      .tab-button::before,
+      .chip-button::before {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: inherit;
+        z-index: -1;
+        pointer-events: none;
+        background: linear-gradient(180deg, color-mix(in oklab, var(--control-overlay) 100%, transparent), transparent 48%);
+        opacity: 0.9;
+      }
+
       .ghost-button,
       .chip-button {
-        background: color-mix(in oklab, var(--panel) 88%, transparent);
+        background: linear-gradient(180deg, color-mix(in oklab, var(--control-surface) 96%, transparent), color-mix(in oklab, var(--control-surface-strong) 88%, transparent));
         color: var(--text);
-        border: 1px solid var(--line);
+        border-color: color-mix(in oklab, var(--line-strong) 30%, var(--line));
       }
 
       .solid-button {
         background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white 12%), color-mix(in oklab, var(--teal) 52%, var(--accent) 48%));
         color: white;
-        box-shadow: 0 18px 32px color-mix(in oklab, var(--accent) 28%, transparent);
+        border-color: color-mix(in oklab, var(--accent) 42%, transparent);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.18),
+          0 18px 32px color-mix(in oklab, var(--accent) 28%, transparent);
       }
 
       .soft-button {
-        background: color-mix(in oklab, var(--accent) 13%, var(--panel) 87%);
+        background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 14%, var(--panel) 86%), color-mix(in oklab, var(--accent) 9%, var(--panel-strong) 91%));
         color: var(--accent);
-        border: 1px solid color-mix(in oklab, var(--accent) 24%, transparent);
+        border-color: color-mix(in oklab, var(--accent) 24%, transparent);
+      }
+
+      .ghost-button.danger-button,
+      .soft-button.danger-button {
+        color: color-mix(in oklab, var(--danger) 82%, var(--text));
+        border-color: color-mix(in oklab, var(--danger) 26%, transparent);
+        background: linear-gradient(180deg, color-mix(in oklab, var(--danger) 10%, var(--panel) 90%), color-mix(in oklab, var(--danger) 6%, var(--panel-strong) 94%));
+      }
+
+      .solid-button.danger-button {
+        background: linear-gradient(135deg, color-mix(in oklab, var(--danger) 82%, white 18%), color-mix(in oklab, var(--danger) 66%, var(--accent) 34%));
+        border-color: color-mix(in oklab, var(--danger) 32%, transparent);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.18),
+          0 18px 32px color-mix(in oklab, var(--danger) 22%, transparent);
       }
 
       .ghost-button:hover,
@@ -319,7 +383,8 @@ const APP_STYLE = `
       .ghost-button[disabled],
       .solid-button[disabled],
       .soft-button[disabled],
-      .chip-button[disabled] {
+      .chip-button[disabled],
+      .tab-button[disabled] {
         opacity: 0.52;
         cursor: not-allowed;
         transform: none;
@@ -338,6 +403,16 @@ const APP_STYLE = `
         border: 1px solid color-mix(in oklab, var(--line-strong) 58%, transparent);
         box-shadow: inset 0 1px 0 color-mix(in oklab, white 12%, transparent);
         filter: saturate(0.64);
+      }
+
+      .ghost-button:focus-visible,
+      .solid-button:focus-visible,
+      .soft-button:focus-visible,
+      .tab-button:focus-visible,
+      .chip-button:focus-visible {
+        box-shadow:
+          0 0 0 4px var(--control-focus),
+          var(--control-shadow);
       }
 
       .hero {
@@ -457,7 +532,7 @@ const APP_STYLE = `
         flex-wrap: wrap;
         margin-top: 1rem;
         padding: 0.5rem;
-        border-radius: 999px;
+        border-radius: 24px;
         background: color-mix(in oklab, var(--panel) 86%, transparent);
         border: 1px solid var(--line);
         box-shadow: var(--shadow-soft);
@@ -468,6 +543,7 @@ const APP_STYLE = `
         color: var(--muted);
         font-weight: 700;
         padding-inline: 1rem;
+        box-shadow: none;
       }
 
       .tab-button.active {
@@ -544,6 +620,27 @@ const APP_STYLE = `
         font-weight: 700;
       }
 
+      .form-field:focus-within .field-label {
+        color: color-mix(in oklab, var(--accent) 68%, var(--text));
+      }
+
+      .field-shell,
+      .select-wrap {
+        position: relative;
+        display: block;
+      }
+
+      .field-shell::before,
+      .select-wrap::before {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: 15px;
+        pointer-events: none;
+        background: linear-gradient(180deg, color-mix(in oklab, var(--control-overlay) 100%, transparent), transparent 58%);
+        opacity: 0.9;
+      }
+
       .field-input,
       .field-select,
       .field-textarea {
@@ -551,16 +648,30 @@ const APP_STYLE = `
         z-index: 2;
         width: 100%;
         border-radius: 16px;
-        border: 1px solid var(--line);
-        background: color-mix(in oklab, var(--panel) 92%, transparent);
+        border: 1px solid color-mix(in oklab, var(--line-strong) 28%, var(--line));
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--control-surface) 96%, transparent), color-mix(in oklab, var(--control-surface-strong) 84%, transparent));
         color: var(--text);
-        padding: 0.92rem 1rem;
+        padding: 0.98rem 1rem;
+        box-shadow:
+          inset 0 1px 0 color-mix(in oklab, white 18%, transparent),
+          var(--control-shadow);
         transition:
           border-color 180ms var(--ease-out),
           transform 180ms var(--ease-out),
           box-shadow 180ms var(--ease-out),
           background-color 180ms var(--ease-out);
-        box-shadow: inset 0 1px 0 color-mix(in oklab, white 18%, transparent);
+      }
+
+      .field-input::placeholder,
+      .field-textarea::placeholder {
+        color: color-mix(in oklab, var(--muted) 82%, transparent);
+      }
+
+      .field-input:hover,
+      .field-select:hover,
+      .field-textarea:hover {
+        border-color: color-mix(in oklab, var(--line-strong) 52%, var(--line));
       }
 
       .field-input:focus,
@@ -568,13 +679,53 @@ const APP_STYLE = `
       .field-textarea:focus {
         outline: none;
         border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
-        box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 12%, transparent);
+        box-shadow:
+          0 0 0 4px var(--control-focus),
+          0 14px 34px color-mix(in oklab, var(--accent) 12%, transparent);
         transform: translateY(-1px);
+      }
+
+      .field-input[disabled],
+      .field-select[disabled],
+      .field-textarea[disabled] {
+        cursor: not-allowed;
+        color: color-mix(in oklab, var(--muted) 82%, var(--text) 18%);
+        border-color: color-mix(in oklab, var(--line) 92%, transparent);
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 88%, transparent), color-mix(in oklab, var(--panel-contrast) 64%, transparent));
+        box-shadow: inset 0 1px 0 color-mix(in oklab, white 10%, transparent);
+      }
+
+      .field-select {
+        padding-right: 3rem;
+        cursor: pointer;
+      }
+
+      .select-wrap::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: 1.1rem;
+        width: 0.58rem;
+        height: 0.58rem;
+        border-right: 2px solid color-mix(in oklab, var(--muted) 80%, var(--text));
+        border-bottom: 2px solid color-mix(in oklab, var(--muted) 80%, var(--text));
+        transform: translateY(-70%) rotate(45deg);
+        pointer-events: none;
+        z-index: 3;
       }
 
       .field-textarea {
         min-height: 7rem;
         resize: vertical;
+        line-height: 1.65;
+      }
+
+      .field-note {
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.55;
+        margin: 0;
       }
 
       .toolbar-actions,
@@ -974,7 +1125,7 @@ const APP_STYLE = `
         flex-wrap: wrap;
         gap: 0.35rem;
         padding: 0.34rem;
-        border-radius: 18px;
+        border-radius: 20px;
         border: 1px solid var(--line);
         background:
           linear-gradient(180deg, color-mix(in oklab, var(--panel) 92%, transparent), color-mix(in oklab, var(--panel-contrast) 60%, transparent));
@@ -985,7 +1136,8 @@ const APP_STYLE = `
         position: relative;
         z-index: 2;
         border: 0;
-        border-radius: 12px;
+        min-height: 2.95rem;
+        border-radius: 14px;
         padding: 0.72rem 0.96rem;
         color: var(--muted);
         background: transparent;
@@ -1052,29 +1204,213 @@ const APP_STYLE = `
         color: color-mix(in oklab, var(--danger) 78%, var(--text));
       }
 
-      .toast {
+      .toast-stack {
         position: fixed;
         right: 1rem;
         bottom: 1rem;
-        z-index: 40;
-        min-width: min(24rem, calc(100vw - 2rem));
-        max-width: 28rem;
-        padding: 0.95rem 1.05rem;
-        border-radius: 18px;
-        border: 1px solid var(--line);
-        background: color-mix(in oklab, var(--panel) 96%, transparent);
-        box-shadow: var(--shadow);
-        display: grid;
-        gap: 0.25rem;
-        animation: rise 0.3s var(--ease-out);
+        z-index: 60;
+        pointer-events: none;
       }
 
-      .toast.error {
-        border-color: color-mix(in oklab, var(--danger) 20%, transparent);
+      .toast {
+        --toast-accent: var(--accent);
+        min-width: min(25rem, calc(100vw - 2rem));
+        max-width: 30rem;
+        border-radius: 24px;
+        border: 1px solid color-mix(in oklab, var(--line-strong) 22%, var(--line));
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 98%, transparent), color-mix(in oklab, var(--panel-strong) 92%, transparent));
+        box-shadow: var(--shadow);
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.9rem;
+        padding: 1rem 1rem 0.92rem;
+        animation: rise 0.3s var(--ease-out);
+        pointer-events: auto;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .toast::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: linear-gradient(180deg, color-mix(in oklab, var(--toast-accent) 88%, white 12%), color-mix(in oklab, var(--toast-accent) 62%, transparent));
       }
 
       .toast.success {
-        border-color: color-mix(in oklab, var(--success) 20%, transparent);
+        --toast-accent: var(--success);
+      }
+
+      .toast.error {
+        --toast-accent: var(--danger);
+      }
+
+      .toast-icon {
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: color-mix(in oklab, var(--toast-accent) 12%, var(--panel) 88%);
+        color: color-mix(in oklab, var(--toast-accent) 78%, var(--text));
+        font-weight: 800;
+        box-shadow: inset 0 1px 0 color-mix(in oklab, white 16%, transparent);
+      }
+
+      .toast-copy {
+        min-width: 0;
+        display: grid;
+        gap: 0.22rem;
+      }
+
+      .toast-copy strong,
+      .toast-copy div {
+        overflow-wrap: anywhere;
+      }
+
+      .toast-copy strong {
+        font-size: 0.95rem;
+      }
+
+      .toast-copy div {
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .toast-close {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 12px;
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        background: color-mix(in oklab, var(--panel-contrast) 72%, transparent);
+        color: var(--muted);
+        box-shadow: none;
+        padding: 0;
+      }
+
+      .toast-close:hover {
+        color: var(--text);
+        border-color: color-mix(in oklab, var(--line-strong) 42%, var(--line));
+        transform: translateY(-1px);
+      }
+
+      .toast-progress {
+        grid-column: 1 / -1;
+        height: 4px;
+        margin-top: 0.1rem;
+        border-radius: 999px;
+        background: color-mix(in oklab, var(--line) 72%, transparent);
+        overflow: hidden;
+      }
+
+      .toast-progress-bar {
+        display: block;
+        width: 100%;
+        height: 100%;
+        transform-origin: left center;
+        background: linear-gradient(90deg, color-mix(in oklab, var(--toast-accent) 84%, white 16%), color-mix(in oklab, var(--toast-accent) 52%, transparent));
+        animation: toast-drain 3.2s linear forwards;
+      }
+
+      .dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 55;
+        padding: 1rem;
+        display: grid;
+        place-items: center;
+        background: color-mix(in oklab, var(--overlay) 100%, transparent);
+        backdrop-filter: blur(10px);
+        animation: fade-in 0.22s var(--ease-out);
+      }
+
+      .dialog-panel {
+        position: relative;
+        overflow: hidden;
+        width: min(34rem, calc(100vw - 2rem));
+        border-radius: 30px;
+        border: 1px solid color-mix(in oklab, var(--line-strong) 24%, var(--line));
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 98%, transparent), color-mix(in oklab, var(--panel-strong) 94%, transparent));
+        box-shadow: var(--shadow);
+        animation: rise 0.26s var(--ease-out);
+      }
+
+      .dialog-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(145deg, color-mix(in oklab, var(--accent) 10%, transparent), transparent 40%, color-mix(in oklab, var(--teal) 9%, transparent));
+        pointer-events: none;
+      }
+
+      .dialog-panel.danger::before {
+        background: linear-gradient(145deg, color-mix(in oklab, var(--danger) 12%, transparent), transparent 46%, color-mix(in oklab, var(--accent) 8%, transparent));
+      }
+
+      .dialog-content,
+      .dialog-actions {
+        position: relative;
+        z-index: 1;
+      }
+
+      .dialog-content {
+        display: grid;
+        gap: 1rem;
+        padding: 1.35rem 1.35rem 1rem;
+      }
+
+      .dialog-topline {
+        display: flex;
+        gap: 0.9rem;
+        align-items: start;
+      }
+
+      .dialog-icon {
+        width: 2.8rem;
+        height: 2.8rem;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        flex: none;
+        background: color-mix(in oklab, var(--accent) 11%, var(--panel) 89%);
+        color: var(--accent);
+        font-weight: 800;
+        box-shadow: inset 0 1px 0 color-mix(in oklab, white 16%, transparent);
+      }
+
+      .dialog-panel.danger .dialog-icon {
+        background: color-mix(in oklab, var(--danger) 12%, var(--panel) 88%);
+        color: color-mix(in oklab, var(--danger) 82%, var(--text));
+      }
+
+      .dialog-copy {
+        min-width: 0;
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .dialog-title {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+
+      .dialog-message {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+        white-space: pre-line;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.7rem;
+        padding: 0 1.35rem 1.25rem;
       }
 
       .auth-shell {
@@ -1233,6 +1569,10 @@ const APP_STYLE = `
         display: block;
       }
 
+      .auth-submit {
+        width: 100%;
+      }
+
       @keyframes rise {
         from {
           opacity: 0;
@@ -1265,6 +1605,24 @@ const APP_STYLE = `
         }
       }
 
+      @keyframes toast-drain {
+        from {
+          transform: scaleX(1);
+        }
+        to {
+          transform: scaleX(0);
+        }
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
       @media (max-width: 1080px) {
         .hero,
         .split-layout,
@@ -1290,7 +1648,8 @@ const APP_STYLE = `
         .toolbar-actions,
         .pager,
         .inline-actions,
-        .form-actions {
+        .form-actions,
+        .dialog-actions {
           width: 100%;
         }
 
@@ -1321,6 +1680,32 @@ const APP_STYLE = `
         .settings-grid,
         .api-grid {
           padding-inline: 1rem;
+        }
+
+        .toast-stack {
+          right: 0.5rem;
+          left: 0.5rem;
+          bottom: 0.5rem;
+        }
+
+        .toast {
+          min-width: 0;
+          max-width: none;
+          width: 100%;
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .toast-close {
+          grid-column: 2;
+          justify-self: end;
+        }
+
+        .dialog-actions {
+          flex-direction: column-reverse;
+        }
+
+        .dialog-actions > button {
+          width: 100%;
         }
       }
 
@@ -1360,13 +1745,34 @@ ${FONT_LINKS}
 
 function renderAppScript(pageSize, rulesPageSize) {
   return `
-      const { createApp } = Vue;
+      const { createApp, nextTick } = Vue;
       const STORAGE_THEME = "tmc-theme";
       const STORAGE_TAB = "tmc-active-tab";
       const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
         dateStyle: "medium",
         timeStyle: "short"
       });
+
+      function createToastState() {
+        return {
+          show: false,
+          tone: "success",
+          title: "",
+          message: ""
+        };
+      }
+
+      function createDialogState() {
+        return {
+          open: false,
+          tone: "default",
+          eyebrow: "",
+          title: "",
+          message: "",
+          confirmLabel: "确认",
+          cancelLabel: "取消"
+        };
+      }
 
       createApp({
         data() {
@@ -1417,12 +1823,8 @@ function renderAppScript(pageSize, rulesPageSize) {
             savingRule: false,
             savingWhitelist: false,
             savingForwarding: false,
-            toast: {
-              show: false,
-              tone: "success",
-              title: "",
-              message: ""
-            }
+            toast: createToastState(),
+            dialog: createDialogState()
           };
         },
         computed: {
@@ -1505,6 +1907,12 @@ function renderAppScript(pageSize, rulesPageSize) {
         },
         beforeUnmount() {
           this.stopPolling();
+          clearTimeout(this._toastTimer);
+          document.body.style.overflow = "";
+          if (this._dialogResolver) {
+            this._dialogResolver(false);
+            this._dialogResolver = null;
+          }
         },
         methods: {
           async bootstrap() {
@@ -1556,8 +1964,40 @@ function renderAppScript(pageSize, rulesPageSize) {
             this.toast = { show: true, tone, title, message };
             clearTimeout(this._toastTimer);
             this._toastTimer = setTimeout(() => {
-              this.toast.show = false;
-            }, 2600);
+              this.dismissToast();
+            }, 3200);
+          },
+          dismissToast() {
+            this.toast = createToastState();
+          },
+          async openDialog(config = {}) {
+            if (this._dialogResolver) {
+              this._dialogResolver(false);
+              this._dialogResolver = null;
+            }
+            this.dialog = {
+              open: true,
+              tone: config.tone || "default",
+              eyebrow: config.eyebrow || "确认操作",
+              title: config.title || "继续操作？",
+              message: config.message || "",
+              confirmLabel: config.confirmLabel || "确认",
+              cancelLabel: config.cancelLabel || "取消"
+            };
+            document.body.style.overflow = "hidden";
+            return new Promise((resolve) => {
+              this._dialogResolver = resolve;
+              nextTick(() => {
+                document.querySelector("[data-dialog-confirm]")?.focus();
+              });
+            });
+          },
+          resolveDialog(confirmed) {
+            const resolver = this._dialogResolver;
+            this._dialogResolver = null;
+            this.dialog = createDialogState();
+            document.body.style.overflow = "";
+            if (resolver) resolver(confirmed);
           },
           adminHeaders() {
             return this.adminToken ? { Authorization: "Bearer " + this.adminToken } : {};
@@ -1767,7 +2207,14 @@ function renderAppScript(pageSize, rulesPageSize) {
             await this.loadRules();
           },
           async deleteRule(id) {
-            if (!window.confirm("确认删除这条规则吗？")) return;
+            const confirmed = await this.openDialog({
+              tone: "danger",
+              eyebrow: "Delete Rule",
+              title: "确认删除这条规则？",
+              message: "删除后它不会再参与后续邮件提取。如果这是你最后一条业务规则，后续只会保留站点解析器和内置规则。",
+              confirmLabel: "删除规则"
+            });
+            if (!confirmed) return;
             const payload = await this.requestJson("/admin/rules/" + id, { method: "DELETE" });
             if (!payload) return;
             this.showToast("规则已删除", "这条提取规则不会再参与后续邮件解析");
@@ -1830,7 +2277,14 @@ function renderAppScript(pageSize, rulesPageSize) {
             await this.loadWhitelistData();
           },
           async deleteWhitelistEntry(id) {
-            if (!window.confirm("确认删除这条白名单吗？")) return;
+            const confirmed = await this.openDialog({
+              tone: "danger",
+              eyebrow: "Delete Allowlist",
+              title: "确认删除这条白名单？",
+              message: "删除后，与这条模式匹配的发件人会失去放行约束。若当前没有其他白名单，系统会重新接受所有发件人。",
+              confirmLabel: "删除白名单"
+            });
+            if (!confirmed) return;
             const payload = await this.requestJson("/admin/whitelist/" + id, { method: "DELETE" });
             if (!payload) return;
             this.showToast("白名单已删除", "发件人过滤列表已更新");
@@ -1991,14 +2445,18 @@ ${renderDocumentHead("Temp Mail Console")}
             <div class="toolbar">
               <div class="search-field">
                 <label class="field-label" for="email-search">搜索邮件</label>
-                <input id="email-search" class="field-input" v-model="searchQuery" @keydown.enter="applyEmailFilters" placeholder="主题、发件人、收件人、提取值" />
+                <div class="field-shell">
+                  <input id="email-search" class="field-input" type="search" v-model="searchQuery" @keydown.enter="applyEmailFilters" placeholder="主题、发件人、收件人、提取值" autocomplete="off" spellcheck="false" />
+                </div>
               </div>
               <div class="select-field">
                 <label class="field-label" for="domain-filter">域名筛选</label>
-                <select id="domain-filter" class="field-select" v-model="filterDomain" @change="applyEmailFilters">
-                  <option value="">全部域名</option>
-                  <option v-for="domain in availableDomains" :key="domain" :value="domain">{{ domain }}</option>
-                </select>
+                <div class="select-wrap">
+                  <select id="domain-filter" class="field-select" v-model="filterDomain" @change="applyEmailFilters">
+                    <option value="">全部域名</option>
+                    <option v-for="domain in availableDomains" :key="domain" :value="domain">{{ domain }}</option>
+                  </select>
+                </div>
               </div>
               <div class="toolbar-actions">
                 <button class="solid-button" @click="applyEmailFilters">应用筛选</button>
@@ -2101,17 +2559,23 @@ ${renderDocumentHead("Temp Mail Console")}
 
                 <label class="form-field">
                   <span class="field-label">备注名称</span>
-                  <input class="field-input" v-model="ruleForm.remark" placeholder="例如：验证码 / 激活链接" />
+                  <div class="field-shell">
+                    <input class="field-input" type="text" v-model="ruleForm.remark" placeholder="例如：验证码 / 激活链接" autocomplete="off" />
+                  </div>
                 </label>
 
                 <label class="form-field">
                   <span class="field-label">发件人过滤规则</span>
-                  <textarea class="field-textarea" v-model="ruleForm.sender_filter" placeholder="例如：.*@example\\.com 或多行模式"></textarea>
+                  <div class="field-shell">
+                    <textarea class="field-textarea" v-model="ruleForm.sender_filter" placeholder="例如：.*@example\\.com 或多行模式" spellcheck="false"></textarea>
+                  </div>
                 </label>
 
                 <label class="form-field">
                   <span class="field-label">内容匹配正则</span>
-                  <textarea class="field-textarea" v-model="ruleForm.pattern" placeholder="例如：\\b\\d{6}\\b"></textarea>
+                  <div class="field-shell">
+                    <textarea class="field-textarea" v-model="ruleForm.pattern" placeholder="例如：\\b\\d{6}\\b" spellcheck="false"></textarea>
+                  </div>
                 </label>
 
                 <div class="form-actions">
@@ -2273,7 +2737,9 @@ ${renderDocumentHead("Temp Mail Console")}
 
                 <label class="form-field">
                   <span class="field-label">发件人模式</span>
-                  <textarea class="field-textarea" v-model="whitelistForm.sender_pattern" placeholder="例如：.*@qq\\.com"></textarea>
+                  <div class="field-shell">
+                    <textarea class="field-textarea" v-model="whitelistForm.sender_pattern" placeholder="例如：.*@qq\\.com" spellcheck="false"></textarea>
+                  </div>
                 </label>
 
                 <div class="form-actions">
@@ -2350,7 +2816,10 @@ ${renderDocumentHead("Temp Mail Console")}
 
                 <label class="form-field">
                   <span class="field-label">自定义目标邮箱</span>
-                  <input class="field-input" v-model="forwardingForm.forward_to" :disabled="forwardingForm.forwarding_mode !== 'custom'" placeholder="例如：123456789@qq.com" />
+                  <div class="field-shell">
+                    <input class="field-input" type="email" v-model="forwardingForm.forward_to" :disabled="forwardingForm.forwarding_mode !== 'custom'" placeholder="例如：123456789@qq.com" autocomplete="off" spellcheck="false" inputmode="email" />
+                  </div>
+                  <p class="field-note">这里填的地址必须已经在 Cloudflare Email Routing 里验证。切回“跟随默认值”时会继续使用部署里的 <code>FORWARD_TO</code>。</p>
                 </label>
 
                 <div>
@@ -2583,9 +3052,37 @@ ${renderDocumentHead("Temp Mail Console")}
         </section>
       </main>
 
-      <div v-if="toast.show" class="toast" :class="toast.tone" aria-live="polite">
-        <strong>{{ toast.title }}</strong>
-        <div>{{ toast.message }}</div>
+      <div class="toast-stack" aria-live="polite" aria-atomic="true">
+        <div v-if="toast.show" class="toast" :class="toast.tone">
+          <div class="toast-icon" aria-hidden="true">{{ toast.tone === "error" ? "!" : "✓" }}</div>
+          <div class="toast-copy">
+            <strong>{{ toast.title }}</strong>
+            <div>{{ toast.message }}</div>
+          </div>
+          <button class="toast-close" type="button" @click="dismissToast" aria-label="关闭通知">×</button>
+          <div class="toast-progress" aria-hidden="true">
+            <span class="toast-progress-bar"></span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="dialog.open" class="dialog-backdrop" tabindex="-1" @click.self="resolveDialog(false)" @keydown.esc="resolveDialog(false)">
+        <section class="dialog-panel" :class="dialog.tone" role="alertdialog" aria-modal="true" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
+          <div class="dialog-content">
+            <div class="dialog-topline">
+              <div class="dialog-icon" aria-hidden="true">{{ dialog.tone === "danger" ? "!" : "?" }}</div>
+              <div class="dialog-copy">
+                <div class="eyebrow">{{ dialog.eyebrow }}</div>
+                <h4 id="app-dialog-title" class="dialog-title">{{ dialog.title }}</h4>
+                <p id="app-dialog-message" class="dialog-message">{{ dialog.message }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="dialog-actions">
+            <button class="ghost-button" type="button" @click="resolveDialog(false)">{{ dialog.cancelLabel }}</button>
+            <button class="solid-button" :class="{ 'danger-button': dialog.tone === 'danger' }" type="button" data-dialog-confirm @click="resolveDialog(true)">{{ dialog.confirmLabel }}</button>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -2647,10 +3144,13 @@ ${renderDocumentHead("Temp Mail Console - 登录")}
             <form class="auth-form" onsubmit="return false;">
               <label class="form-field">
                 <span class="field-label">ADMIN_TOKEN</span>
-                <input id="admin-token" class="field-input" type="password" placeholder="请输入后台访问令牌" autocomplete="current-password" />
+                <div class="field-shell">
+                  <input id="admin-token" class="field-input" type="password" placeholder="请输入后台访问令牌" autocomplete="current-password" spellcheck="false" />
+                </div>
+                <p class="field-note">令牌会先请求管理接口做一次校验，通过后再写入 <code>admin_token</code> Cookie。</p>
               </label>
               <div id="admin-error" class="auth-error">密码不正确，请重试。</div>
-              <button id="admin-submit" class="solid-button" type="button">进入控制台</button>
+              <button id="admin-submit" class="solid-button auth-submit" type="button" disabled>进入控制台</button>
             </form>
 
             <div class="auth-foot">
@@ -2682,31 +3182,53 @@ ${renderDocumentHead("Temp Mail Console - 登录")}
         error.classList.add("show");
       }
 
+      function hideError() {
+        error?.classList.remove("show");
+      }
+
+      function syncSubmitState(isLoading = false) {
+        if (!submit) return;
+        const hasToken = Boolean(input && input.value.trim());
+        submit.disabled = isLoading || !hasToken;
+        submit.textContent = isLoading ? "校验中..." : "进入控制台";
+      }
+
       async function attempt() {
         const token = input ? input.value.trim() : "";
         if (!token) {
           showError("请输入访问令牌。");
           return;
         }
-        const res = await fetch("/admin/emails?page=1", {
-          headers: { Authorization: "Bearer " + token }
-        });
-        if (res.status === 401) {
-          showError("密码不正确，请重试。");
-          return;
+        hideError();
+        syncSubmitState(true);
+        try {
+          const res = await fetch("/admin/emails?page=1", {
+            headers: { Authorization: "Bearer " + token }
+          });
+          if (res.status === 401) {
+            showError("密码不正确，请重试。");
+            return;
+          }
+          if (!res.ok) {
+            showError("登录失败，请稍后再试。");
+            return;
+          }
+          document.cookie = "admin_token=" + encodeURIComponent(token) + "; Path=/; SameSite=Lax";
+          window.location.href = "/";
+        } finally {
+          syncSubmitState(false);
         }
-        if (!res.ok) {
-          showError("登录失败，请稍后再试。");
-          return;
-        }
-        document.cookie = "admin_token=" + encodeURIComponent(token) + "; Path=/; SameSite=Lax";
-        window.location.href = "/";
       }
 
       submit?.addEventListener("click", attempt);
+      input?.addEventListener("input", () => {
+        hideError();
+        syncSubmitState(false);
+      });
       input?.addEventListener("keydown", (event) => {
         if (event.key === "Enter") attempt();
       });
+      syncSubmitState(false);
     </script>
   </body>
 </html>`;
