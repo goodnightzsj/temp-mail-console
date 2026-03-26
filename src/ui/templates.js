@@ -715,6 +715,115 @@ const APP_STYLE = `
         z-index: 3;
       }
 
+      .custom-select {
+        position: relative;
+        min-width: min(18rem, 100%);
+      }
+
+      .select-trigger {
+        width: 100%;
+        justify-content: space-between;
+        padding-right: 0.92rem;
+      }
+
+      .select-trigger-copy {
+        min-width: 0;
+        display: grid;
+        gap: 0.12rem;
+        text-align: left;
+      }
+
+      .select-trigger-value {
+        font-size: 0.97rem;
+        line-height: 1.2;
+        color: var(--text);
+        overflow-wrap: anywhere;
+      }
+
+      .select-trigger-meta {
+        font-size: 0.76rem;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
+      .select-trigger-icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        flex: none;
+        background: color-mix(in oklab, var(--panel-contrast) 74%, transparent);
+        border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
+        color: var(--muted);
+        transition:
+          transform 180ms var(--ease-out),
+          color 180ms var(--ease-out),
+          border-color 180ms var(--ease-out);
+      }
+
+      .select-trigger.open .select-trigger-icon {
+        transform: rotate(180deg);
+        color: var(--text);
+        border-color: color-mix(in oklab, var(--accent) 24%, transparent);
+      }
+
+      .custom-select-menu {
+        position: absolute;
+        top: calc(100% + 0.6rem);
+        left: 0;
+        right: 0;
+        z-index: 20;
+        padding: 0.45rem;
+        border-radius: 22px;
+        border: 1px solid color-mix(in oklab, var(--line-strong) 26%, var(--line));
+        background:
+          linear-gradient(180deg, color-mix(in oklab, var(--panel) 98%, transparent), color-mix(in oklab, var(--panel-strong) 92%, transparent));
+        box-shadow: var(--shadow);
+        display: grid;
+        gap: 0.2rem;
+        max-height: min(20rem, 48vh);
+        overflow: auto;
+        animation: rise 0.22s var(--ease-out);
+      }
+
+      .custom-select-option {
+        width: 100%;
+        min-height: 3rem;
+        border: 1px solid transparent;
+        border-radius: 16px;
+        background: transparent;
+        color: var(--text);
+        box-shadow: none;
+        padding: 0.82rem 0.9rem;
+        display: grid;
+        gap: 0.14rem;
+        justify-items: start;
+        text-align: left;
+      }
+
+      .custom-select-option:hover {
+        background: color-mix(in oklab, var(--accent) 7%, var(--panel) 93%);
+        border-color: color-mix(in oklab, var(--accent) 18%, transparent);
+      }
+
+      .custom-select-option.active {
+        background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 12%, var(--panel) 88%), color-mix(in oklab, var(--accent) 6%, var(--panel-strong) 94%));
+        border-color: color-mix(in oklab, var(--accent) 24%, transparent);
+      }
+
+      .custom-select-option .option-title {
+        font-size: 0.94rem;
+        line-height: 1.3;
+      }
+
+      .custom-select-option .option-meta {
+        font-size: 0.76rem;
+        color: var(--muted);
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
       .field-textarea {
         min-height: 7rem;
         resize: vertical;
@@ -1784,6 +1893,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             items: [],
             searchQuery: "",
             filterDomain: "",
+            domainMenuOpen: false,
             availableDomains: [],
             rules: [],
             builtinRules: [],
@@ -1909,6 +2019,7 @@ function renderAppScript(pageSize, rulesPageSize) {
           this.stopPolling();
           clearTimeout(this._toastTimer);
           document.body.style.overflow = "";
+          document.removeEventListener("pointerdown", this.handleDocumentPointerDown);
           if (this._dialogResolver) {
             this._dialogResolver(false);
             this._dialogResolver = null;
@@ -1916,6 +2027,7 @@ function renderAppScript(pageSize, rulesPageSize) {
         },
         methods: {
           async bootstrap() {
+            document.addEventListener("pointerdown", this.handleDocumentPointerDown);
             await Promise.all([
               this.loadList(),
               this.loadRules(),
@@ -1928,6 +2040,7 @@ function renderAppScript(pageSize, rulesPageSize) {
           setActiveTab(tab) {
             this.activeTab = tab;
             localStorage.setItem(STORAGE_TAB, tab);
+            if (tab !== "emails") this.domainMenuOpen = false;
           },
           toggleTheme() {
             this.isDark = !this.isDark;
@@ -1969,6 +2082,33 @@ function renderAppScript(pageSize, rulesPageSize) {
           },
           dismissToast() {
             this.toast = createToastState();
+          },
+          currentDomainLabel() {
+            return this.filterDomain || "全部域名";
+          },
+          currentDomainMeta() {
+            if (this.filterDomain) return "只查看这个收件域名的邮件";
+            return "切换到单个域名或回到全部";
+          },
+          toggleDomainMenu() {
+            this.domainMenuOpen = !this.domainMenuOpen;
+          },
+          openDomainMenu() {
+            this.domainMenuOpen = true;
+          },
+          closeDomainMenu() {
+            this.domainMenuOpen = false;
+          },
+          selectDomain(domain) {
+            this.filterDomain = domain;
+            this.domainMenuOpen = false;
+            this.applyEmailFilters();
+          },
+          handleDocumentPointerDown(event) {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            if (target.closest("[data-domain-select]")) return;
+            this.domainMenuOpen = false;
           },
           async openDialog(config = {}) {
             if (this._dialogResolver) {
@@ -2085,12 +2225,14 @@ function renderAppScript(pageSize, rulesPageSize) {
             this.availableDomains = payload.data.domains || [];
           },
           applyEmailFilters() {
+            this.domainMenuOpen = false;
             this.page = 1;
             this.loadList();
           },
           clearEmailFilters() {
             this.searchQuery = "";
             this.filterDomain = "";
+            this.domainMenuOpen = false;
             this.page = 1;
             this.loadList();
           },
@@ -2451,11 +2593,44 @@ ${renderDocumentHead("Temp Mail Console")}
               </div>
               <div class="select-field">
                 <label class="field-label" for="domain-filter">域名筛选</label>
-                <div class="select-wrap">
-                  <select id="domain-filter" class="field-select" v-model="filterDomain" @change="applyEmailFilters">
-                    <option value="">全部域名</option>
-                    <option v-for="domain in availableDomains" :key="domain" :value="domain">{{ domain }}</option>
-                  </select>
+                <div class="custom-select" data-domain-select>
+                  <button
+                    id="domain-filter"
+                    class="ghost-button select-trigger"
+                    :class="{ open: domainMenuOpen }"
+                    type="button"
+                    aria-haspopup="listbox"
+                    :aria-expanded="domainMenuOpen ? 'true' : 'false'"
+                    @click="toggleDomainMenu"
+                    @keydown.down.prevent="openDomainMenu"
+                    @keydown.enter.prevent="toggleDomainMenu"
+                    @keydown.space.prevent="toggleDomainMenu"
+                  >
+                    <span class="select-trigger-copy">
+                      <span class="select-trigger-value">{{ currentDomainLabel() }}</span>
+                      <span class="select-trigger-meta">{{ currentDomainMeta() }}</span>
+                    </span>
+                    <span class="select-trigger-icon" aria-hidden="true">⌄</span>
+                  </button>
+                  <div v-if="domainMenuOpen" class="custom-select-menu" role="listbox" aria-labelledby="domain-filter">
+                    <button class="custom-select-option" :class="{ active: !filterDomain }" type="button" role="option" :aria-selected="!filterDomain ? 'true' : 'false'" @click="selectDomain('')">
+                      <span class="option-title">全部域名</span>
+                      <span class="option-meta">不过滤收件域名，查看当前邮箱池的所有邮件。</span>
+                    </button>
+                    <button
+                      v-for="domain in availableDomains"
+                      :key="domain"
+                      class="custom-select-option"
+                      :class="{ active: filterDomain === domain }"
+                      type="button"
+                      role="option"
+                      :aria-selected="filterDomain === domain ? 'true' : 'false'"
+                      @click="selectDomain(domain)"
+                    >
+                      <span class="option-title">{{ domain }}</span>
+                      <span class="option-meta">只查看收件地址包含 {{ domain }} 的邮件。</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div class="toolbar-actions">
