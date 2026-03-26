@@ -1381,6 +1381,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             availableDomains: [],
             rules: [],
             builtinRules: [],
+            siteParsers: [],
             rulesPage: 1,
             rulesTotal: 0,
             ruleForm: { remark: "", sender_filter: "", pattern: "" },
@@ -1432,7 +1433,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             return Math.max(1, Math.ceil(this.rulesTotal / ${rulesPageSize}));
           },
           totalRuleInventory() {
-            return this.rulesTotal + this.builtinRules.length;
+            return this.rulesTotal + this.builtinRules.length + this.siteParsers.length;
           },
           whitelistTotalPages() {
             return Math.max(1, Math.ceil(this.whitelistTotal / ${rulesPageSize}));
@@ -1688,10 +1689,16 @@ function renderAppScript(pageSize, rulesPageSize) {
           resultKey(result, index) {
             return [
               result?.rule_id ?? "builtin",
+              result?.plugin_key ?? "plugin",
               result?.rule_key ?? "custom",
               result?.value ?? "",
               index
             ].join("-");
+          },
+          resultSourceLabel(result) {
+            if (result?.source === "site_parser") return "站点解析器";
+            if (result?.source === "builtin") return "内置规则";
+            return "自定义规则";
           },
           async copyContent(text) {
             try {
@@ -1718,6 +1725,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             this.rules = payload.data.items || [];
             this.rulesTotal = payload.data.total || 0;
             this.builtinRules = payload.data.builtin_items || [];
+            this.siteParsers = payload.data.site_parser_items || [];
           },
           editRule(rule) {
             this.editingRuleId = rule.id;
@@ -1939,9 +1947,9 @@ ${renderDocumentHead("Temp Mail Console")}
                 <div class="metric-copy">当前筛选条件下的邮件总数</div>
               </div>
               <div class="metric-card">
-                <div class="metric-label">Rules</div>
+                <div class="metric-label">Signals</div>
                 <div class="metric-value">{{ totalRuleInventory }}</div>
-                <div class="metric-copy">内置 + 自定义规则总量，命中策略一眼可见</div>
+                <div class="metric-copy">站点解析器、内置规则与自定义规则的总量</div>
               </div>
               <div class="metric-card">
                 <div class="metric-label">Allowlist</div>
@@ -2037,8 +2045,9 @@ ${renderDocumentHead("Temp Mail Console")}
                         <div class="result-item" v-for="(result, index) in parseResults(item.extracted_json)" :key="resultKey(result, index)">
                           <strong>{{ result.remark || (result.rule_id ? ('规则 #' + result.rule_id) : '未命名命中') }}</strong>
                           <div class="tag-cloud">
-                            <span class="tag neutral">{{ result.source === "builtin" ? "内置规则" : "自定义规则" }}</span>
+                            <span class="tag neutral">{{ resultSourceLabel(result) }}</span>
                             <span class="tag neutral" v-if="result.rule_key">{{ result.rule_key }}</span>
+                            <span class="tag neutral" v-if="result.plugin_key">{{ result.plugin_key }}</span>
                           </div>
                           <div class="mono">{{ result.value }}</div>
                           <div class="result-context" v-if="result.before || result.after">
@@ -2052,7 +2061,7 @@ ${renderDocumentHead("Temp Mail Console")}
 
                     <div class="note-shell" v-else>
                       <div class="field-label">没有命中结果</div>
-                      <p class="microcopy">这封邮件通过了白名单，但没有命中任何提取规则。可以去“命中规则”页新增或调整正则。</p>
+                      <p class="microcopy">这封邮件通过了白名单，但没有命中任何站点解析器或提取规则。可以去“命中规则”页补充新的自定义正则，或继续扩展站点解析插件。</p>
                     </div>
                   </div>
                 </article>
@@ -2072,9 +2081,10 @@ ${renderDocumentHead("Temp Mail Console")}
             <div class="panel-head">
               <div>
                 <h3 class="panel-title">规则控制台</h3>
-                <p class="panel-subtitle">这里会同时展示系统内置规则和你手动维护的自定义规则。创建前会校验正则合法性，避免无效表达式被写入后在运行时静默跳过。</p>
+                <p class="panel-subtitle">这里会同时展示站点解析器目录、系统内置规则和你手动维护的自定义规则。创建前会校验正则合法性，避免无效表达式被写入后在运行时静默跳过。</p>
               </div>
               <div class="stat-line">
+                <span>站点解析器 {{ siteParsers.length }} 个</span>
                 <span>内置 {{ builtinRules.length }} 条</span>
                 <span>自定义第 {{ rulesPage }} / {{ rulesTotalPages }} 页</span>
                 <span>总计 {{ totalRuleInventory }} 条</span>
@@ -2157,6 +2167,51 @@ ${renderDocumentHead("Temp Mail Console")}
                   <section class="rule-section">
                     <div class="list-head section-head">
                       <div>
+                        <div class="eyebrow">Site Parsers</div>
+                        <h4 class="panel-title">站点解析器</h4>
+                      </div>
+                      <span class="section-note">优先做站点特定提取，再交给规则引擎兜底</span>
+                    </div>
+
+                    <div class="builtin-catalog">
+                      <div class="builtin-catalog-intro">
+                        <p class="panel-copy">这里列出的解析器会先按发件人、关键词和平台提示过滤候选邮件，再做站点特定的验证码或链接提取。后续如果要接新站点，优先在插件目录新增解析器，而不是继续堆一层全局正则。</p>
+                        <div class="tag-cloud">
+                          <span class="tag positive">站点特定</span>
+                          <span class="tag neutral">插件化扩展</span>
+                          <span class="tag neutral">优先于规则引擎</span>
+                        </div>
+                      </div>
+
+                      <div class="builtin-scroll">
+                        <div class="builtin-list">
+                          <article v-for="parser in siteParsers" :key="parser.key" class="builtin-row">
+                            <div class="builtin-row-top">
+                              <div class="builtin-row-title">
+                                <span class="builtin-key">{{ parser.key }}</span>
+                                <h4 class="resource-title">{{ parser.display_name }}</h4>
+                              </div>
+                              <div class="builtin-meta">
+                                <span class="tag positive">站点解析</span>
+                                <span class="tag neutral">{{ parser.site_key }}</span>
+                              </div>
+                            </div>
+                            <p class="resource-copy builtin-description">{{ parser.description }}</p>
+                            <div class="tag-cloud">
+                              <span class="tag neutral" v-for="keyword in parser.sender_keywords.slice(0, 3)" :key="parser.key + '-sender-' + keyword">sender: {{ keyword }}</span>
+                              <span class="tag neutral" v-for="keyword in parser.verify_keywords.slice(0, 2)" :key="parser.key + '-verify-' + keyword">verify: {{ keyword }}</span>
+                            </div>
+                          </article>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div class="section-divider"></div>
+
+                  <section class="rule-section">
+                    <div class="list-head section-head">
+                      <div>
                         <div class="eyebrow">Rule Inventory</div>
                         <h4 class="panel-title">自定义规则</h4>
                       </div>
@@ -2169,7 +2224,7 @@ ${renderDocumentHead("Temp Mail Console")}
                     <div v-if="rules.length === 0" class="empty-state compact-empty">
                       <div class="eyebrow">No Custom Rules</div>
                       <h4 class="empty-title">内置规则已就绪，自定义规则还没开始。</h4>
-                      <p class="empty-copy">上面的内置规则已经会直接参与提取。这里为空只代表你还没有额外补充业务专用正则，例如某个平台的特定验证码或邀请链接格式。</p>
+                      <p class="empty-copy">上面的站点解析器和内置规则已经会直接参与提取。这里为空只代表你还没有额外补充业务专用正则，例如某个平台的特定验证码或邀请链接格式。</p>
                     </div>
 
                     <div v-else class="rules-feed">
@@ -2332,7 +2387,7 @@ ${renderDocumentHead("Temp Mail Console")}
                     </div>
                     <div class="key-point">
                       <strong>当前提取策略</strong>
-                      <span class="microcopy">{{ builtinRuleModeLabel }}。内置规则默认覆盖数字、英文+数字、连字符代码、链接和封禁邮件；匹配源会同时包含主题与正文。</span>
+                      <span class="microcopy">{{ builtinRuleModeLabel }}。这里只控制规则引擎；站点解析器会优先按站点特征做提取。内置规则默认覆盖数字、英文+数字、连字符代码、链接和封禁邮件；匹配源会同时包含主题与正文。</span>
                     </div>
                     <div class="key-point">
                       <strong>当前转发内容</strong>
@@ -2514,7 +2569,7 @@ ${renderDocumentHead("Temp Mail Console")}
                     </div>
                     <div class="key-point">
                       <strong>source / rule_key</strong>
-                      <span class="microcopy">可区分命中来自内置规则还是自定义规则。内置规则默认包含数字、英文+数字、连字符代码、链接和封禁邮件。</span>
+                      <span class="microcopy">可区分命中来自站点解析器、内置规则还是自定义规则。内置规则默认包含数字、英文+数字、连字符代码、链接和封禁邮件。</span>
                     </div>
                     <div class="key-point">
                       <strong>完整请求示例</strong>

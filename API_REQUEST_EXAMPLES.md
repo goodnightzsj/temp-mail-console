@@ -79,6 +79,14 @@ curl --request GET \
   --header "Authorization: Bearer $API_TOKEN"
 ```
 
+查询站点解析器识别出的 OpenAI 邀请链接：
+
+```bash
+curl --request GET \
+  "$WORKER_URL/api/emails/latest?address=$ADDRESS&remark=OpenAI%20Team%20邀请链接" \
+  --header "Authorization: Bearer $API_TOKEN"
+```
+
 ## JavaScript fetch Example
 
 ```js
@@ -146,13 +154,16 @@ print(response.json())
     "results": [
       {
         "rule_id": null,
-        "rule_key": "builtin_digits",
-        "source": "builtin",
-        "remark": "数字",
+        "rule_key": null,
+        "plugin_key": "openai",
+        "site_key": "openai",
+        "source": "site_parser",
+        "remark": "OpenAI 验证码",
         "value": "123456",
         "match": "123456",
-        "before": "Use code",
-        "after": "to continue."
+        "before": "Subject: Your ChatGPT code is",
+        "after": "Text: Enter this temporary verification code to continue.",
+        "kind": "code"
       }
     ]
   }
@@ -160,7 +171,9 @@ print(response.json())
 ```
 
 说明：
-- `results` 里可能同时出现多个内置命中，例如多个验证码、多个链接，或 `remark = 封禁邮件` 的语义标签。
+- `results` 里可能同时出现站点解析器命中、内置规则命中和自定义规则命中。
+- 站点解析器结果会带 `plugin_key / site_key / kind`。
+- 规则引擎结果仍可能带 `rule_key` 或 `rule_id`。
 - 当前匹配源会同时覆盖邮件主题、纯文本正文、HTML 文本和原始 HTML。
 
 列表查询：
@@ -185,13 +198,16 @@ print(response.json())
         "results": [
           {
             "rule_id": null,
-            "rule_key": "builtin_link",
-            "source": "builtin",
-            "remark": "链接",
-            "value": "https://example.com/verify",
-            "match": "https://example.com/verify",
+            "rule_key": null,
+            "plugin_key": "tavily",
+            "site_key": "tavily",
+            "source": "site_parser",
+            "remark": "Tavily 验证链接",
+            "value": "https://auth.tavily.com/u/email-verification?ticket=demo",
+            "match": "https://auth.tavily.com/u/email-verification?ticket=demo",
             "before": "Click",
-            "after": "to complete verification."
+            "after": "to complete verification.",
+            "kind": "link"
           }
         ]
       }

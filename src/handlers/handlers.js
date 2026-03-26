@@ -26,6 +26,7 @@ import {
 } from "../utils/utils.js";
 import * as dbActions from "../core/db.js";
 import { getBuiltinRuleCatalog } from "../core/logic.js";
+import { getSiteParserCatalog } from "../site-parsers/index.js";
 
 const FORWARDING_MODES = new Set(["env", "custom", "disabled"]);
 const BUILTIN_RULE_MODES = new Set(["append", "builtin_only", "custom_only"]);
@@ -120,13 +121,16 @@ export async function handleAdminRulesGet(url, db) {
   const page = clampPage(url.searchParams.get("page"));
   const { items, total } = await dbActions.getRulesPaged(db, page, RULES_PAGE_SIZE);
   const builtinItems = getBuiltinRuleCatalog();
+  const siteParserItems = getSiteParserCatalog();
   return json({
     page,
     pageSize: RULES_PAGE_SIZE,
     total,
     items,
     builtin_total: builtinItems.length,
-    builtin_items: builtinItems
+    builtin_items: builtinItems,
+    site_parser_total: siteParserItems.length,
+    site_parser_items: siteParserItems
   });
 }
 

@@ -9,6 +9,7 @@ import {
   MAX_SENDER_PATTERN_LENGTH
 } from "../utils/constants.js";
 import { normalizeWhitespace, stripHtml, summarizeText } from "../utils/utils.js";
+import { applySiteParsers } from "../site-parsers/index.js";
 
 const BUILTIN_RULES = [
   {
@@ -69,6 +70,13 @@ export function getBuiltinRuleCatalog() {
     description: rule.description || "",
     sender_filter: ""
   }));
+}
+
+function mergeMatches(siteParserMatches, ruleMatches) {
+  return [
+    ...(Array.isArray(siteParserMatches) ? siteParserMatches : []),
+    ...(Array.isArray(ruleMatches) ? ruleMatches : [])
+  ];
 }
 
 async function parseIncomingEmail(message) {
@@ -230,7 +238,9 @@ export async function processIncomingEmail(message, env, ctx) {
   const matchContent = buildMatchContent(parsed);
   const contentSummary = buildContentSummary(parsed);
   const activeRules = selectRules(customRules, settings.builtin_rule_mode);
-  const matches = applyRules(matchContent, parsed.from, activeRules);
+  const siteParserMatches = applySiteParsers(parsed, matchContent);
+  const ruleMatches = applyRules(matchContent, parsed.from, activeRules);
+  const matches = mergeMatches(siteParserMatches, ruleMatches);
 
   ctx.waitUntil(saveEmail(env.DB, {
     ...parsed,
