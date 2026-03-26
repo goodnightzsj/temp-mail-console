@@ -1932,6 +1932,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             total: 0,
             items: [],
             expandedMessageIds: {},
+            pendingEmailPayload: null,
             searchQuery: "",
             filterDomain: "",
             domainMenuOpen: false,
@@ -2081,7 +2082,13 @@ function renderAppScript(pageSize, rulesPageSize) {
           setActiveTab(tab) {
             this.activeTab = tab;
             localStorage.setItem(STORAGE_TAB, tab);
-            if (tab !== "emails") this.domainMenuOpen = false;
+            if (tab !== "emails") {
+              this.domainMenuOpen = false;
+              this.expandedMessageIds = {};
+              this.flushPendingEmailPayload();
+            } else if (!this.hasExpandedMessages()) {
+              this.flushPendingEmailPayload();
+            }
           },
           toggleTheme() {
             this.isDark = !this.isDark;
@@ -2091,7 +2098,7 @@ function renderAppScript(pageSize, rulesPageSize) {
           startPolling() {
             this.stopPolling();
             this.poller = setInterval(() => {
-              if (this.adminToken && this.activeTab === "emails") this.loadList();
+              if (this.adminToken && this.activeTab === "emails") this.loadList({ deferWhenExpanded: true });
             }, 6000);
           },
           stopPolling() {
@@ -2130,6 +2137,9 @@ function renderAppScript(pageSize, rulesPageSize) {
           currentDomainMeta() {
             if (this.filterDomain) return "只查看这个收件域名的邮件";
             return "切换到单个域名或回到全部";
+          },
+          hasExpandedMessages() {
+            return Object.keys(this.expandedMessageIds || {}).length > 0;
           },
           toggleDomainMenu() {
             this.domainMenuOpen = !this.domainMenuOpen;
@@ -2182,6 +2192,47 @@ function renderAppScript(pageSize, rulesPageSize) {
           },
           adminHeaders() {
             return this.adminToken ? { Authorization: "Bearer " + this.adminToken } : {};
+          },
+          emailPayloadChanged(nextData = {}) {
+            const nextItems = Array.isArray(nextData.items) ? nextData.items : [];
+            if ((nextData.total || 0) !== this.total) return true;
+            if (nextItems.length !== this.items.length) return true;
+            return nextItems.some((item, index) => {
+              const current = this.items[index];
+              return !current
+                || current.message_id !== item.message_id
+                || current.received_at !== item.received_at
+                || current.subject !== item.subject
+                || current.content_summary !== item.content_summary
+                || current.extracted_json !== item.extracted_json
+                || current.from_address !== item.from_address
+                || current.to_address !== item.to_address;
+            });
+          },
+          applyEmailPayload(nextData = {}) {
+            const currentById = new Map(this.items.map((item) => [item.message_id, item]));
+            const nextItems = (nextData.items || []).map((item) => {
+              const existing = currentById.get(item.message_id);
+              const nextExpanded = Boolean(this.expandedMessageIds[item.message_id]);
+              if (!existing) return { ...item, _expanded: nextExpanded };
+              Object.assign(existing, item, { _expanded: nextExpanded });
+              return existing;
+            });
+            const visibleIds = new Set(nextItems.map((item) => item.message_id));
+            this.expandedMessageIds = Object.fromEntries(
+              Object.entries(this.expandedMessageIds).filter(([messageId, expanded]) => expanded && visibleIds.has(messageId))
+            );
+            this.items = nextItems;
+            this.total = nextData.total || 0;
+            this.pendingEmailPayload = null;
+          },
+          queuePendingEmailPayload(nextData = {}) {
+            if (!this.emailPayloadChanged(nextData)) return;
+            this.pendingEmailPayload = nextData;
+          },
+          flushPendingEmailPayload() {
+            if (!this.pendingEmailPayload) return;
+            this.applyEmailPayload(this.pendingEmailPayload);
           },
           areStatesEqual(left, right) {
             return JSON.stringify(left) === JSON.stringify(right);
@@ -2251,18 +2302,17 @@ function renderAppScript(pageSize, rulesPageSize) {
               return null;
             }
           },
-          async loadList() {
+          async loadList(options = {}) {
             let url = "/admin/emails?page=" + this.page;
             if (this.filterDomain) url += "&domain=" + encodeURIComponent(this.filterDomain);
             if (this.searchQuery.trim()) url += "&q=" + encodeURIComponent(this.searchQuery.trim());
             const payload = await this.requestJson(url);
             if (!payload?.data) return;
-            const expandedMap = this.expandedMessageIds || {};
-            this.items = (payload.data.items || []).map((item) => ({
-              ...item,
-              _expanded: Boolean(expandedMap[item.message_id])
-            }));
-            this.total = payload.data.total || 0;
+            if (options.deferWhenExpanded && this.hasExpandedMessages()) {
+              this.queuePendingEmailPayload(payload.data);
+              return;
+            }
+            this.applyEmailPayload(payload.data);
           },
           async loadDomains() {
             const payload = await this.requestJson("/admin/domains");
@@ -2271,6 +2321,8 @@ function renderAppScript(pageSize, rulesPageSize) {
           },
           applyEmailFilters() {
             this.domainMenuOpen = false;
+            this.expandedMessageIds = {};
+            this.pendingEmailPayload = null;
             this.page = 1;
             this.loadList();
           },
@@ -2278,16 +2330,22 @@ function renderAppScript(pageSize, rulesPageSize) {
             this.searchQuery = "";
             this.filterDomain = "";
             this.domainMenuOpen = false;
+            this.expandedMessageIds = {};
+            this.pendingEmailPayload = null;
             this.page = 1;
             this.loadList();
           },
           async nextPage() {
             if (this.page >= this.totalPages) return;
+            this.expandedMessageIds = {};
+            this.pendingEmailPayload = null;
             this.page += 1;
             await this.loadList();
           },
           async prevPage() {
             if (this.page <= 1) return;
+            this.expandedMessageIds = {};
+            this.pendingEmailPayload = null;
             this.page -= 1;
             await this.loadList();
           },
@@ -2349,6 +2407,9 @@ function renderAppScript(pageSize, rulesPageSize) {
               return { ...item, _expanded: nextExpanded };
             });
             this.expandedMessageIds = expandedMap;
+            if (!this.hasExpandedMessages()) {
+              this.flushPendingEmailPayload();
+            }
           },
           formatTime(ts) {
             return timeFormatter.format(new Date(ts));
