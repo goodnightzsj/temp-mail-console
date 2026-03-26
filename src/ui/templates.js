@@ -1931,6 +1931,7 @@ function renderAppScript(pageSize, rulesPageSize) {
             page: 1,
             total: 0,
             items: [],
+            expandedMessageIds: {},
             searchQuery: "",
             filterDomain: "",
             domainMenuOpen: false,
@@ -2256,7 +2257,11 @@ function renderAppScript(pageSize, rulesPageSize) {
             if (this.searchQuery.trim()) url += "&q=" + encodeURIComponent(this.searchQuery.trim());
             const payload = await this.requestJson(url);
             if (!payload?.data) return;
-            this.items = payload.data.items || [];
+            const expandedMap = this.expandedMessageIds || {};
+            this.items = (payload.data.items || []).map((item) => ({
+              ...item,
+              _expanded: Boolean(expandedMap[item.message_id])
+            }));
             this.total = payload.data.total || 0;
           },
           async loadDomains() {
@@ -2332,11 +2337,18 @@ function renderAppScript(pageSize, rulesPageSize) {
             }
           },
           toggleResult(messageId) {
-            this.items = this.items.map((item) => (
-              item.message_id === messageId
-                ? { ...item, _expanded: !item._expanded }
-                : item
-            ));
+            const expandedMap = { ...this.expandedMessageIds };
+            this.items = this.items.map((item) => {
+              if (item.message_id !== messageId) return item;
+              const nextExpanded = !item._expanded;
+              if (nextExpanded) {
+                expandedMap[messageId] = true;
+              } else {
+                delete expandedMap[messageId];
+              }
+              return { ...item, _expanded: nextExpanded };
+            });
+            this.expandedMessageIds = expandedMap;
           },
           formatTime(ts) {
             return timeFormatter.format(new Date(ts));
