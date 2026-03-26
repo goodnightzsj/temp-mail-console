@@ -568,6 +568,10 @@ const APP_STYLE = `
         overflow: hidden;
       }
 
+      .email-panel {
+        overflow: visible;
+      }
+
       .panel-head {
         display: flex;
         justify-content: space-between;
@@ -599,6 +603,8 @@ const APP_STYLE = `
         flex-wrap: wrap;
         gap: 0.8rem;
         align-items: center;
+        position: relative;
+        z-index: 8;
       }
 
       .search-field,
@@ -718,6 +724,11 @@ const APP_STYLE = `
       .custom-select {
         position: relative;
         min-width: min(18rem, 100%);
+        z-index: 10;
+      }
+
+      .custom-select.menu-open {
+        z-index: 18;
       }
 
       .select-trigger {
@@ -773,7 +784,7 @@ const APP_STYLE = `
         top: calc(100% + 0.6rem);
         left: 0;
         right: 0;
-        z-index: 20;
+        z-index: 40;
         padding: 0.45rem;
         border-radius: 22px;
         border: 1px solid color-mix(in oklab, var(--line-strong) 26%, var(--line));
@@ -848,6 +859,8 @@ const APP_STYLE = `
       }
 
       .stack {
+        position: relative;
+        z-index: 1;
         display: grid;
         gap: 1rem;
         padding: 1.2rem 1.45rem 1.45rem;
@@ -880,15 +893,34 @@ const APP_STYLE = `
         box-shadow: var(--shadow-soft);
       }
 
+      .message-card.expanded {
+        border-color: color-mix(in oklab, var(--accent) 30%, var(--line));
+        box-shadow: var(--shadow-soft);
+      }
+
       .message-summary {
-        width: 100%;
-        border: 0;
-        background: transparent;
-        color: inherit;
         padding: 1rem 1.1rem;
-        text-align: left;
         display: grid;
         gap: 0.8rem;
+      }
+
+      .message-summary-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.9rem;
+        align-items: start;
+      }
+
+      .message-summary-copy {
+        min-width: 0;
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .message-toggle {
+        min-width: 7.25rem;
+        align-self: start;
+        box-shadow: none;
       }
 
       .message-meta,
@@ -1766,6 +1798,14 @@ const APP_STYLE = `
           grid-template-columns: 1fr 1fr;
         }
 
+        .message-summary-top {
+          flex-direction: column;
+        }
+
+        .message-toggle {
+          width: 100%;
+        }
+
         .builtin-row-top {
           grid-template-columns: 1fr;
         }
@@ -2572,7 +2612,7 @@ ${renderDocumentHead("Temp Mail Console")}
         <div v-if="adminError" class="inline-alert">{{ adminError }}</div>
 
         <section v-if="activeTab === 'emails'" class="workspace screen-enter" style="--stagger:3">
-          <article class="panel">
+          <article class="panel email-panel">
             <div class="panel-head">
               <div>
                 <h3 class="panel-title">收件箱巡检</h3>
@@ -2593,7 +2633,7 @@ ${renderDocumentHead("Temp Mail Console")}
               </div>
               <div class="select-field">
                 <label class="field-label" for="domain-filter">域名筛选</label>
-                <div class="custom-select" data-domain-select>
+                <div class="custom-select" data-domain-select :class="{ 'menu-open': domainMenuOpen }">
                   <button
                     id="domain-filter"
                     class="ghost-button select-trigger"
@@ -2647,23 +2687,36 @@ ${renderDocumentHead("Temp Mail Console")}
               </div>
 
               <div v-else class="message-feed">
-                <article v-for="item in items" :key="item.message_id" class="message-card">
-                  <button class="message-summary" @click="toggleResult(item.message_id)">
-                    <div class="message-meta">
-                      <span class="tag" :class="hasResult(item.extracted_json) ? 'positive' : 'neutral'">
-                        {{ hasResult(item.extracted_json) ? ('命中 ' + resultCount(item.extracted_json) + ' 条') : '未命中' }}
-                      </span>
-                      <span class="tag attention" v-if="item.to_address && item.to_address.includes(',')">多收件人</span>
+                <article v-for="item in items" :key="item.message_id" class="message-card" :class="{ expanded: item._expanded }">
+                  <div class="message-summary">
+                    <div class="message-summary-top">
+                      <div class="message-summary-copy">
+                        <div class="message-meta">
+                          <span class="tag" :class="hasResult(item.extracted_json) ? 'positive' : 'neutral'">
+                            {{ hasResult(item.extracted_json) ? ('命中 ' + resultCount(item.extracted_json) + ' 条') : '未命中' }}
+                          </span>
+                          <span class="tag attention" v-if="item.to_address && item.to_address.includes(',')">多收件人</span>
+                        </div>
+                        <h4 class="subject">{{ item.subject || "（无主题）" }}</h4>
+                        <div class="message-grid">
+                          <div><strong>发件人</strong><br />{{ item.from_address }}</div>
+                          <div><strong>收件人</strong><br />{{ item.to_address }}</div>
+                          <div><strong>接收时间</strong><br />{{ formatTime(item.received_at) }}</div>
+                          <div><strong>状态</strong><br />{{ item._expanded ? "详情已展开" : "详情已折叠" }}</div>
+                        </div>
+                        <p class="subject-copy" v-if="item.content_summary">{{ item.content_summary }}</p>
+                      </div>
+                      <button
+                        class="ghost-button message-toggle"
+                        type="button"
+                        :aria-expanded="item._expanded ? 'true' : 'false'"
+                        :aria-label="item._expanded ? '收起邮件详情' : '展开邮件详情'"
+                        @click="toggleResult(item.message_id)"
+                      >
+                        {{ item._expanded ? "收起详情" : "展开详情" }}
+                      </button>
                     </div>
-                    <h4 class="subject">{{ item.subject || "（无主题）" }}</h4>
-                    <div class="message-grid">
-                      <div><strong>发件人</strong><br />{{ item.from_address }}</div>
-                      <div><strong>收件人</strong><br />{{ item.to_address }}</div>
-                      <div><strong>接收时间</strong><br />{{ formatTime(item.received_at) }}</div>
-                      <div><strong>状态</strong><br />{{ item._expanded ? "收起详情" : "展开详情" }}</div>
-                    </div>
-                    <p class="subject-copy" v-if="item.content_summary">{{ item.content_summary }}</p>
-                  </button>
+                  </div>
 
                   <div v-if="item._expanded" class="message-details">
                     <div class="result-shell" v-if="hasResult(item.extracted_json)">
