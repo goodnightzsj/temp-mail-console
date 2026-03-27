@@ -301,6 +301,11 @@ GET /api/emails/latest?address=<email_address>&remark=<optional>&since=<optional
 GET /api/emails?address=<email_address>&remark=<optional>&since=<optional>&limit=<optional>
 ```
 
+> 说明：
+> - `GET /api/emails/latest` 和 `GET /api/emails` 里的 `items[]` 单封邮件结构是一致的，字段都是 `message_id / from_address / to_address / subject / content_summary / received_at / results`。
+> - 当前公开 API 只返回主题、正文摘要和收敛后的结果，不返回完整原始邮件全文、原始 HTML 或 `.eml` 内容。
+> - 管理端 `GET /admin/emails` 也同样不返回原始邮件，只返回 `content_summary + extracted_json` 供控制台展示。
+
 **响应：**
 
 ```json

@@ -45,6 +45,13 @@ curl "$WORKER_URL/api/emails?address=$ADDRESS&remark=链接&since=2026-03-26T00:
 - `remark`：可选
 - `limit`：可选，默认 `20`，最大 `50`
 
+## Response Semantics
+
+- `GET /api/emails/latest` 返回一封邮件对象。
+- `GET /api/emails` 返回列表；其中每个 `items[]` 单项与 `GET /api/emails/latest` 的单封邮件结构一致。
+- 当前公开 API 不返回完整原始邮件全文、原始 HTML 或 `.eml`；只返回 `subject`、`content_summary` 和收敛后的 `results`。
+- 如果需要调试原始命中细节，管理端 `GET /admin/emails` 也只会返回 `content_summary + extracted_json`，不会直接暴露完整原始邮件。
+
 ## cURL Examples
 
 查询最新一条且只看“数字”命中：
