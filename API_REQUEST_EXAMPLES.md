@@ -171,10 +171,11 @@ print(response.json())
 ```
 
 说明：
-- `results` 里可能同时出现站点解析器命中、内置规则命中和自定义规则命中。
+- `results` 是站点解析器与规则引擎收敛后的主结果，不保证把所有重复命中原样返回。
 - 站点解析器结果会带 `plugin_key / site_key / kind`。
 - 规则引擎结果仍可能带 `rule_key` 或 `rule_id`。
-- 当前匹配源会同时覆盖邮件主题、纯文本正文、HTML 文本和原始 HTML。
+- 当同一个验证码、链接或邀请链接被多个来源同时命中时，默认优先保留 `site_parser > builtin > custom`。
+- 规则引擎会按规则类型选择匹配字段；验证码类默认看 `subject / text / htmlText`，链接类才会额外看 `rawHtml`。
 
 列表查询：
 
