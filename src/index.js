@@ -136,13 +136,25 @@ export default {
     const method = request.method;
 
     // 1. API 路由 (/api/...)
-    if (pathname === "/api/emails/latest" || pathname === "/api/emails") {
+    if (
+      pathname === "/api/emails/latest"
+      || pathname === "/api/emails"
+      || pathname === "/api/emails/raw/latest"
+      || pathname === "/api/emails/raw"
+    ) {
       if (method === "OPTIONS") return apiOptionsResponse();
       if (method !== "GET") return apiJsonError("Method Not Allowed", 405);
       if (!isApiAuthorized(request, env.API_TOKEN)) return apiJsonError("Unauthorized", 401);
-      const res = pathname === "/api/emails/latest"
-        ? await handlers.handleEmailsLatest(url, env.DB)
-        : await handlers.handleEmailsList(url, env.DB);
+      let res;
+      if (pathname === "/api/emails/latest") {
+        res = await handlers.handleEmailsLatest(url, env.DB);
+      } else if (pathname === "/api/emails") {
+        res = await handlers.handleEmailsList(url, env.DB);
+      } else if (pathname === "/api/emails/raw/latest") {
+        res = await handlers.handleEmailsRawLatest(url, env.DB);
+      } else {
+        res = await handlers.handleEmailsRawList(url, env.DB);
+      }
       return applyCors(res, CORS_HEADERS);
     }
 

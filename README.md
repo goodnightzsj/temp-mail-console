@@ -33,7 +33,7 @@ Incoming Email
 - 🔍 **内容正则提取**：按规则类型选择主题、正文、HTML 文本或原始 HTML 做正则匹配，提取验证码、英文数字组合、连字符代码、链接和封禁通知等关键信息。
 - ✏️ **规则 / 白名单全 CRUD**：支持创建、分页查看、更新、删除，并在保存前校验正则合法性。
 - 🔎 **邮件检索增强**：支持按收件域名和关键字搜索主题、发件人、收件人及提取结果。
-- 🖥️ **RESTful API**：支持查询最新一条或按时间 / 备注拉取列表，便于系统集成。
+- 🖥️ **RESTful API**：支持查询最新一条、按时间 / 备注拉取列表，以及按需读取解析后的原始正文 `text/html`，便于系统集成和排障。
 - 🔄 **可选邮件转发**：支持部署默认值，也支持在控制台中切换“跟随默认值 / 自定义邮箱 / 停用转发”。默认继续转发原始邮件；如启用 `SEND_EMAIL` binding，也可切到“命中摘要邮件”模式。
 - 🧰 **插件化扩展能力**：新增站点能力时优先添加新的解析器模块，不必继续把平台逻辑堆进全局正则；结果合并器会继续按来源优先级做统一收敛。
 - 🧠 **内置规则兜底**：可按策略启用内置规则，默认覆盖数字、英文+数字、连字符代码、链接和封禁邮件识别。
@@ -301,9 +301,18 @@ GET /api/emails/latest?address=<email_address>&remark=<optional>&since=<optional
 GET /api/emails?address=<email_address>&remark=<optional>&since=<optional>&limit=<optional>
 ```
 
+### 查询解析后的原始正文
+
+```
+GET /api/emails/raw/latest?address=<email_address>&remark=<optional>&since=<optional>
+GET /api/emails/raw?address=<email_address>&remark=<optional>&since=<optional>&limit=<optional>
+```
+
 > 说明：
 > - `GET /api/emails/latest` 和 `GET /api/emails` 里的 `items[]` 单封邮件结构是一致的，字段都是 `message_id / from_address / to_address / subject / content_summary / received_at / results`。
-> - 当前公开 API 只返回主题、正文摘要和收敛后的结果，不返回完整原始邮件全文、原始 HTML 或 `.eml` 内容。
+> - `GET /api/emails/raw/latest` 和 `GET /api/emails/raw` 会在上面的结构基础上额外返回 `text_content / html_content`。
+> - 这里的 “raw” 指解析后的原始正文 `text/html`，不是完整 RFC822 `.eml` 源文。
+> - 历史邮件如果在 `0005_raw_email_payload.sql` 部署前就已入库，`text_content / html_content` 可能为空，因为旧数据当时没有持久化保存这两列。
 > - 管理端 `GET /admin/emails` 也同样不返回原始邮件，只返回 `content_summary + extracted_json` 供控制台展示。
 
 **响应：**

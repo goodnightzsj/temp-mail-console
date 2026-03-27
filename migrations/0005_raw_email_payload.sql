@@ -1,0 +1,2 @@
+ALTER TABLE emails ADD COLUMN text_content TEXT NOT NULL DEFAULT '';
+ALTER TABLE emails ADD COLUMN html_content TEXT NOT NULL DEFAULT '';

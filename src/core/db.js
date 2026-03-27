@@ -40,6 +40,14 @@ function mapEmailRow(row) {
   };
 }
 
+function mapEmailRawRow(row) {
+  return {
+    ...mapEmailRow(row),
+    text_content: row.text_content ? String(row.text_content) : "",
+    html_content: row.html_content ? String(row.html_content) : ""
+  };
+}
+
 function buildRemarkNeedle(remark) {
   const normalized = String(remark || "").trim().toLowerCase();
   return normalized ? `\n${normalized}\n` : "";
@@ -103,6 +111,11 @@ export async function getLatestEmail(db, { address, since = null, remark = null 
   return items[0] || null;
 }
 
+export async function getLatestRawEmail(db, { address, since = null, remark = null }) {
+  const { items } = await listRawEmailsForApi(db, { address, since, remark, limit: 1 });
+  return items[0] || null;
+}
+
 export async function listEmailsForApi(db, { address, since = null, remark = null, limit = 20 }) {
   const { filters, params } = buildApiEmailFilters({ address, since, remark });
   const whereClause = ` WHERE ${filters.join(" AND ")}`;
@@ -122,6 +135,29 @@ export async function listEmailsForApi(db, { address, since = null, remark = nul
 
   return {
     items: list.results.map(mapEmailRow),
+    total: Number(countRow?.total || 0)
+  };
+}
+
+export async function listRawEmailsForApi(db, { address, since = null, remark = null, limit = 20 }) {
+  const { filters, params } = buildApiEmailFilters({ address, since, remark });
+  const whereClause = ` WHERE ${filters.join(" AND ")}`;
+  const listQuery = `
+    SELECT message_id, from_address, to_address, subject, content_summary, text_content, html_content, extracted_json, received_at
+    FROM emails
+    ${whereClause}
+    ORDER BY received_at DESC
+    LIMIT ?
+  `;
+  const countQuery = `SELECT COUNT(1) AS total FROM emails${whereClause}`;
+
+  const [list, countRow] = await Promise.all([
+    db.prepare(listQuery).bind(...params, limit).all(),
+    db.prepare(countQuery).bind(...params).first()
+  ]);
+
+  return {
+    items: list.results.map(mapEmailRawRow),
     total: Number(countRow?.total || 0)
   };
 }
@@ -232,14 +268,16 @@ export async function deleteWhitelistEntry(db, id) {
 }
 
 export async function saveEmail(db, data) {
-  const { from, to, subject, content_summary, matches } = data;
+  const { from, to, subject, text, html, content_summary, matches } = data;
   return db.prepare(
-    "INSERT INTO emails (message_id, from_address, to_address, subject, content_summary, matched_remarks, extracted_json, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO emails (message_id, from_address, to_address, subject, text_content, html_content, content_summary, matched_remarks, extracted_json, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).bind(
     crypto.randomUUID(),
     from,
     to.join(","),
     subject,
+    text || "",
+    html || "",
     content_summary || "",
     buildMatchedRemarksIndex(matches),
     JSON.stringify(Array.isArray(matches) ? matches : []),

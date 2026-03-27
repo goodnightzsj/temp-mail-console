@@ -79,6 +79,14 @@ function formatApiEmail(row, remark = null) {
   };
 }
 
+function formatRawApiEmail(row, remark = null) {
+  return {
+    ...formatApiEmail(row, remark),
+    text_content: row.text_content || "",
+    html_content: row.html_content || ""
+  };
+}
+
 export async function handleEmailsLatest(url, db) {
   const query = parseApiEmailQuery(url, { defaultLimit: 1 });
   if (query.error) return jsonError(query.error, 400);
@@ -101,6 +109,31 @@ export async function handleEmailsList(url, db) {
     limit: query.limit,
     total,
     items: items.map((row) => formatApiEmail(row, query.remark))
+  });
+}
+
+export async function handleEmailsRawLatest(url, db) {
+  const query = parseApiEmailQuery(url, { defaultLimit: 1 });
+  if (query.error) return jsonError(query.error, 400);
+
+  const row = await dbActions.getLatestRawEmail(db, query);
+  if (!row) return jsonError("message not found", 404);
+
+  return json(formatRawApiEmail(row, query.remark));
+}
+
+export async function handleEmailsRawList(url, db) {
+  const query = parseApiEmailQuery(url, { defaultLimit: DEFAULT_API_LIST_LIMIT });
+  if (query.error) return jsonError(query.error, 400);
+
+  const { items, total } = await dbActions.listRawEmailsForApi(db, query);
+  return json({
+    address: query.address,
+    since: query.since,
+    remark: query.remark,
+    limit: query.limit,
+    total,
+    items: items.map((row) => formatRawApiEmail(row, query.remark))
   });
 }
 
