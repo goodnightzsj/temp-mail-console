@@ -46,19 +46,66 @@ function extractVerifyLink(runtime) {
   return urlMatch || null;
 }
 
-function extractInviteLink(runtime) {
-  return collectUrls([runtime.html, runtime.text, runtime.subject].join("\n")).find((url) => {
-    if (!/chatgpt\.com|chat\.openai\.com/i.test(url)) return false;
+function isDirectOpenAiInviteUrl(url) {
+  try {
+    const parsed = new URL(String(url || "").trim());
+    const host = String(parsed.hostname || "").toLowerCase();
+    const path = String(parsed.pathname || "").toLowerCase();
+    if (!host.includes("chatgpt.com") && !host.includes("chat.openai.com")) return false;
     if (/(invite|invitation|join)/i.test(url)) return true;
+    const keys = new Set(Array.from(parsed.searchParams.keys()).map((item) => String(item || "").toLowerCase()));
+    return path.includes("/auth/login")
+      && (keys.has("accept_wid") || (keys.has("inv_email") && keys.has("wid")));
+  } catch {
+    return false;
+  }
+}
+
+function extractNestedInviteUrl(url, maxDepth = 3) {
+  let current = String(url || "").trim();
+  if (!current) return null;
+
+  const visited = new Set();
+  for (let depth = 0; depth < maxDepth; depth += 1) {
+    if (!current || visited.has(current)) break;
+    visited.add(current);
+    if (isDirectOpenAiInviteUrl(current)) return current;
+
     try {
-      const parsed = new URL(url);
-      const keys = new Set(Array.from(parsed.searchParams.keys()).map((item) => item.toLowerCase()));
-      return parsed.pathname.toLowerCase().includes("/auth/login")
-        && (keys.has("accept_wid") || (keys.has("inv_email") && keys.has("wid")));
+      const parsed = new URL(current);
+      const candidateValues = [];
+      parsed.searchParams.forEach((value) => {
+        const decoded = decodeURIComponent(String(value || "").trim());
+        if (decoded) candidateValues.push(decoded);
+      });
+
+      let nextUrl = "";
+      for (const value of candidateValues) {
+        const nestedUrl = collectUrls(value)[0] || String(value || "").trim().replace(/[).,;"'<>]+$/g, "");
+        if (!nestedUrl) continue;
+        if (isDirectOpenAiInviteUrl(nestedUrl)) return nestedUrl;
+        if (/^https?:\/\//i.test(nestedUrl)) {
+          nextUrl = nestedUrl;
+          break;
+        }
+      }
+
+      if (!nextUrl) break;
+      current = nextUrl;
     } catch {
-      return false;
+      break;
     }
-  }) || null;
+  }
+
+  return null;
+}
+
+function extractInviteLink(runtime) {
+  for (const url of collectUrls([runtime.html, runtime.text, runtime.subject].join("\n"))) {
+    const directOrNested = extractNestedInviteUrl(url);
+    if (directOrNested) return directOrNested;
+  }
+  return null;
 }
 
 export default {

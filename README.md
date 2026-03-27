@@ -20,6 +20,7 @@ Incoming Email
 - 邮件通过白名单后，会先执行站点解析插件，再按规则类型选择主题、纯文本正文、HTML 文本或原始 HTML 做匹配，而不是所有正则一律宽扫整段原始 HTML。
 - 常见内置规则会在同一封邮件里抓取多项不同命中，避免多个验证码、多个链接或多个连字符代码只保留第一项。
 - 站点解析插件当前内置覆盖 `OpenAI / ChatGPT`、`xAI / Grok`、`Tavily`、`Exa`、`Firecrawl`，适合比纯正则更精准地提取验证码和验证链接。
+- `OpenAI / ChatGPT` 解析器现在也会解包 tracking / redirect URL 中嵌套的真实 Team invite 链接，而不只识别正文里直接出现的 `chatgpt.com/auth/login?...`。
 - 最终结果会做跨来源收敛：默认优先保留 `site parser > builtin > custom` 的主结果，减少同一个验证码或链接被重复命中的噪音。
 - 邮件会始终先入库；转发失败不会影响入库和提取结果。
 - 转发默认仍然是“原始邮件转发”；如果当前环境启用了 `SEND_EMAIL` binding，也可以在控制台改成“命中摘要邮件”。
@@ -37,6 +38,7 @@ Incoming Email
 - 🔄 **可选邮件转发**：支持部署默认值，也支持在控制台中切换“跟随默认值 / 自定义邮箱 / 停用转发”。默认继续转发原始邮件；如启用 `SEND_EMAIL` binding，也可切到“命中摘要邮件”模式。
 - 🧰 **插件化扩展能力**：新增站点能力时优先添加新的解析器模块，不必继续把平台逻辑堆进全局正则；结果合并器会继续按来源优先级做统一收敛。
 - 🧠 **内置规则兜底**：可按策略启用内置规则，默认覆盖数字、英文+数字、连字符代码、链接和封禁邮件识别。
+- 🚄 **高频查询优化**：公开 API 现在通过 `email_recipients / email_match_remarks` 辅助索引表查询地址与 remark，不再长期依赖 `instr(...) / LIKE` 扫描主表。
 - 🧹 **记录自动清理**：Cron 每小时清理 48 小时前的历史数据，防止数据库膨胀。
 - ☁️ **无服务器架构**：基于 Cloudflare Workers + D1，支持低成本托管。
 
@@ -234,7 +236,7 @@ npx wrangler secret put FORWARD_TO
 
 当前内置站点解析插件覆盖：
 
-- `OpenAI / ChatGPT`：验证码、验证链接、Team 邀请链接
+- `OpenAI / ChatGPT`：验证码、验证链接、Team 邀请链接，支持识别 tracking / redirect 包裹后的嵌套真实 invite URL
 - `xAI / Grok`：确认码
 - `Tavily`：邮箱验证链接
 - `Exa`：验证码
@@ -313,6 +315,7 @@ GET /api/emails/raw?address=<email_address>&remark=<optional>&since=<optional>&l
 > - `GET /api/emails/raw/latest` 和 `GET /api/emails/raw` 会在上面的结构基础上额外返回 `text_content / html_content`。
 > - 这里的 “raw” 指解析后的原始正文 `text/html`，不是完整 RFC822 `.eml` 源文。
 > - 历史邮件如果在 `0005_raw_email_payload.sql` 部署前就已入库，`text_content / html_content` 可能为空，因为旧数据当时没有持久化保存这两列。
+> - 公开 API 的 `address` 与 `remark` 查询现在走辅助索引表，适合比早期版本更高频地轮询最新邮件。
 > - 管理端 `GET /admin/emails` 也同样不返回原始邮件，只返回 `content_summary + extracted_json` 供控制台展示。
 
 **响应：**

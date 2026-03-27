@@ -71,6 +71,8 @@ curl "$WORKER_URL/api/emails/raw?address=$ADDRESS&limit=2" \
 - `GET /api/emails/raw` 返回列表；其中每个 `items[]` 单项与 `GET /api/emails/raw/latest` 的单封邮件结构一致。
 - 这里的 `raw` 指解析后的原始正文 `text/html`，不是完整 RFC822 `.eml`。
 - 历史邮件如果在 raw 字段 migration 部署前就已入库，`text_content / html_content` 可能为空。
+- OpenAI Team 邀请链接现在支持识别 tracking / redirect URL 中嵌套的真实 invite URL。
+- 公开 API 的 `address` 与 `remark` 查询现在走辅助索引表，适合更高频地轮询最新邮件。
 - 如果需要调试原始命中细节，管理端 `GET /admin/emails` 也只会返回 `content_summary + extracted_json`，不会直接暴露完整原始邮件。
 
 ## cURL Examples
@@ -112,6 +114,14 @@ curl --request GET \
 ```bash
 curl --request GET \
   "$WORKER_URL/api/emails/latest?address=$ADDRESS&remark=OpenAI%20Team%20邀请链接" \
+  --header "Authorization: Bearer $API_TOKEN"
+```
+
+查询最新一条 OpenAI Team 邀请原始正文：
+
+```bash
+curl --request GET \
+  "$WORKER_URL/api/emails/raw/latest?address=$ADDRESS&remark=OpenAI%20Team%20邀请链接" \
   --header "Authorization: Bearer $API_TOKEN"
 ```
 
@@ -212,6 +222,7 @@ print(response.json())
 - 规则引擎结果仍可能带 `rule_key` 或 `rule_id`。
 - 当同一个验证码、链接或邀请链接被多个来源同时命中时，默认优先保留 `site_parser > builtin > custom`。
 - 规则引擎会按规则类型选择匹配字段；验证码类默认看 `subject / text / htmlText`，链接类才会额外看 `rawHtml`。
+- OpenAI Team 邀请链接支持识别 tracking / redirect URL 里包裹的真实 invite URL。
 
 列表查询：
 
