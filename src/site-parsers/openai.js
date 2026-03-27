@@ -67,7 +67,7 @@ export default {
   display_name: "OpenAI / ChatGPT",
   description: "针对 OpenAI / ChatGPT 验证码、验证链接和 Team 邀请链接做语义提取。",
   sender_keywords: ["openai", "chatgpt", "verify"],
-  verify_keywords: ["verification", "code", "otp", "验证码", "代码", "invite", "join"],
+  verify_keywords: ["verification", "code", "otp", "验证码", "代码", "invite", "join", "workspace", "邀请", "邀請", "加入", "工作空间", "工作空間"],
   platform_hints: ["openai", "chatgpt", "chat.openai.com", "chatgpt.com"],
   extract(runtime) {
     const outputs = [];
