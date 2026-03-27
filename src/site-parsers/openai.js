@@ -92,7 +92,7 @@ export default {
     const inviteLink = extractInviteLink(runtime);
     if (inviteLink) {
       outputs.push(buildSiteParserResult(this, runtime.matchContent, {
-        kind: "link",
+        kind: "invite",
         remark: "OpenAI Team 邀请链接",
         value: inviteLink
       }));
