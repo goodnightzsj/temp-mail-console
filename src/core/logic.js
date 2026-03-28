@@ -34,6 +34,16 @@ const KIND_PRIORITY = {
 
 const REGEX_CACHE = new Map();
 const PATTERN_LIST_CACHE = new Map();
+const BODY_CODE_CONTEXT_RADIUS = 120;
+const BODY_CODE_HINT_REGEX = /(?:verification\s*code|verification\s*codes?|confirm(?:ation)?\s*code|security\s*code|login\s*code|one[-\s]*time\s*(?:code|password)|otp|passcode|pin\s*code|enter\s+(?:the\s+)?code|use\s+(?:this|the)\s+code|verify\s+your\s+(?:email|account)|code\s+in\s+[A-Za-z][A-Za-z0-9 _-]{1,24}|验证码|校验码|驗證碼|确认码|確認碼|动态码|動態碼|授权码|授權碼|输入(?:下方|以下|收到的)?验证码|輸入(?:下方|以下|收到的)?驗證碼|验证您的(?:邮箱|郵箱|邮件|郵件|账户|帳戶|账号|帳號)|驗證您的(?:郵箱|郵件|賬戶|帳戶|賬號|帳號)|驗證碼|驗證您的郵箱|驗證您的帳戶|验证代码|驗證代碼)/i;
+const BODY_PROTECTED_TOKEN_REGEX = /https?:\/\/[^\s"'<>]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/gim;
+const BODY_LINK_CONTEXT_RADIUS = 96;
+const BODY_LINK_HINT_REGEX = /(?:verify(?:\s+your)?|verification|confirm|confirmation|activate|activation|reset|password\s+reset|magic\s+link|review|approve|accept|accept\s+invite|join|join\s+workspace|workspace|continue|open|launch|complete\s+signup|complete\s+registration|email\s+verification|click\s+(?:the|this)?\s*(?:button|link)?|use\s+(?:this|the)\s+link|验证|驗證|确认|確認|激活|啟用|重置|加入|加入工作空间|加入工作空間|接受邀请|接受邀請|继续|繼續|打开|開啟|完成注册|完成註冊|邮箱验证|郵箱驗證|邮件验证|郵件驗證|点击(?:下方|下面)?(?:按钮|按鈕|链接|鏈接)?|請點擊|请点击)/i;
+const BODY_LINK_CTA_TEXT_REGEX = /(?:verify|verification|confirm|activate|reset|magic\s+link|accept|join|workspace|continue|open|review|approve|验证|驗證|确认|確認|激活|重置|加入|工作空间|工作空間|继续|繼續|点击|點擊|接受邀请|接受邀請)/i;
+const BODY_LINK_NEGATIVE_TEXT_REGEX = /(?:help\s*center|help\b|support\b|faq\b|docs?\b|documentation|learn\s+more|contact\s+us|privacy|terms|帮助中心|帮助文档|幫助中心|幫助文件|文档中心|文件中心|客服|支持中心|說明中心|说明中心)/i;
+const BODY_LINK_URL_HINT_REGEX = /(?:verify|verification|confirm|activate|reset|magic|invite|accept|join|auth|login|signup|register|callback|ticket|token|redeem|approve|workspace)/i;
+const BODY_LINK_NEGATIVE_URL_REGEX = /(?:\/docs?(?:\/|$)|\/help(?:\/|$)|\/support(?:\/|$)|\/faq(?:\/|$)|\/learn(?:\/|$)|\/guide(?:\/|$)|\/kb(?:\/|$)|\/knowledge(?:\/|$)|docs?\.)/i;
+const ANCHOR_LINK_REGEX = /<a\b([^>]*?)href=(["'])(https?:\/\/[^"'<>]+)\2([^>]*)>([\s\S]*?)<\/a>/gim;
 
 const BUILTIN_RULES = [
   {
@@ -44,8 +54,9 @@ const BUILTIN_RULES = [
     flags: "gm",
     multiple: true,
     match_kind: "code",
-    scopes: ["subject", "text", "htmlText"],
-    description: "提取 4 到 8 位连续数字，适合大多数验证码与一次性口令。"
+    scopes: ["text", "htmlText"],
+    extractor_key: "contextual_body_code",
+    description: "只从正文提取 4 到 8 位连续数字，并要求周围出现中英文验证码语义。"
   },
   {
     key: "builtin_alpha_numeric",
@@ -55,8 +66,9 @@ const BUILTIN_RULES = [
     flags: "gm",
     multiple: true,
     match_kind: "code",
-    scopes: ["subject", "text", "htmlText"],
-    description: "提取同时包含字母与数字的连续串，适合邀请码、设备码与会话标识。"
+    scopes: ["text", "htmlText"],
+    extractor_key: "contextual_body_code",
+    description: "只从正文提取同时包含字母与数字的候选码，并要求周围出现中英文验证码语义。"
   },
   {
     key: "builtin_alpha_dash_numeric",
@@ -66,8 +78,9 @@ const BUILTIN_RULES = [
     flags: "gm",
     multiple: true,
     match_kind: "code",
-    scopes: ["subject", "text", "htmlText"],
-    description: "提取连字符代码，例如 ZKI-123、ZKI-7RO、231-7RO 或更长的混合标识。"
+    scopes: ["text", "htmlText"],
+    extractor_key: "contextual_body_code",
+    description: "只从正文提取连字符候选码，并要求周围出现中英文验证码语义。"
   },
   {
     key: "builtin_link",
@@ -77,8 +90,9 @@ const BUILTIN_RULES = [
     flags: "gm",
     multiple: true,
     match_kind: "link",
-    scopes: ["subject", "text", "htmlText", "rawHtml"],
-    description: "提取 http 与 https 链接，适合激活、重置密码和邮箱验证场景。"
+    scopes: ["text", "htmlText", "rawHtml"],
+    extractor_key: "contextual_body_link",
+    description: "只从正文提取验证动作链接，优先识别按钮/CTA 语法里的 href，再回退到带验证语义上下文的正文 URL。"
   },
   {
     key: "builtin_deactivation_notice",
@@ -319,6 +333,218 @@ function buildMatchContext(content, index, value) {
   };
 }
 
+function buildBodyOnlyCodeContent(contentByScope) {
+  const candidates = [
+    String(contentByScope?.text || "").trim(),
+    String(contentByScope?.htmlText || "").trim()
+  ];
+  const seen = new Set();
+  const parts = [];
+
+  for (const value of candidates) {
+    const normalized = normalizeWhitespace(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    parts.push(value);
+  }
+
+  return parts.join("\n").slice(0, MAX_MATCH_CONTENT_CHARS);
+}
+
+function buildBodyTextContent(contentByScope) {
+  const candidates = [
+    String(contentByScope?.text || "").trim(),
+    String(contentByScope?.htmlText || "").trim()
+  ];
+  const seen = new Set();
+  const parts = [];
+
+  for (const value of candidates) {
+    const normalized = normalizeWhitespace(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    parts.push(value);
+  }
+
+  return parts.join("\n").slice(0, MAX_MATCH_CONTENT_CHARS);
+}
+
+function collectProtectedTokenRanges(content) {
+  const ranges = [];
+  const regex = getCachedRegex(BODY_PROTECTED_TOKEN_REGEX.source, BODY_PROTECTED_TOKEN_REGEX.flags);
+  if (!(regex instanceof RegExp)) return ranges;
+  const safeContent = String(content || "");
+  regex.lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(safeContent)) !== null) {
+    const value = String(match[0] || "");
+    if (!value) {
+      regex.lastIndex += 1;
+      continue;
+    }
+    const start = Number(match.index || 0);
+    ranges.push([start, start + value.length]);
+  }
+
+  return ranges;
+}
+
+function isProtectedTokenMatch(start, end, ranges) {
+  return ranges.some(([rangeStart, rangeEnd]) => start >= rangeStart && end <= rangeEnd);
+}
+
+function hasBodyCodeContext(content, index, valueLength) {
+  const safeContent = String(content || "");
+  const start = Math.max(0, index - BODY_CODE_CONTEXT_RADIUS);
+  const end = Math.min(safeContent.length, index + Number(valueLength || 0) + BODY_CODE_CONTEXT_RADIUS);
+  return BODY_CODE_HINT_REGEX.test(safeContent.slice(start, end));
+}
+
+function hasBodyLinkContext(content, index, valueLength) {
+  const safeContent = String(content || "");
+  const start = Math.max(0, index - BODY_LINK_CONTEXT_RADIUS);
+  const end = Math.min(safeContent.length, index + Number(valueLength || 0) + BODY_LINK_CONTEXT_RADIUS);
+  const snippet = safeContent.slice(start, end);
+  return BODY_LINK_HINT_REGEX.test(snippet) && !BODY_LINK_NEGATIVE_TEXT_REGEX.test(snippet);
+}
+
+function buildInlineContext(content, index, valueLength) {
+  const safeContent = String(content || "");
+  const start = Number(index || 0);
+  const end = start + Number(valueLength || 0);
+  const lineStart = Math.max(
+    safeContent.lastIndexOf("\n", start - 1),
+    safeContent.lastIndexOf("\r", start - 1)
+  );
+  const lineEndCandidates = [
+    safeContent.indexOf("\n", end),
+    safeContent.indexOf("\r", end)
+  ].filter((candidate) => candidate >= 0);
+  const lineEnd = lineEndCandidates.length > 0 ? Math.min(...lineEndCandidates) : safeContent.length;
+  return safeContent.slice(lineStart >= 0 ? lineStart + 1 : 0, lineEnd).trim();
+}
+
+function looksLikeActionLink(url) {
+  const safeUrl = String(url || "").trim();
+  if (!safeUrl || BODY_LINK_NEGATIVE_URL_REGEX.test(safeUrl)) return false;
+  return BODY_LINK_URL_HINT_REGEX.test(safeUrl);
+}
+
+function isPositiveCtaText(text) {
+  const safeText = normalizeWhitespace(String(text || ""));
+  if (!safeText) return false;
+  if (BODY_LINK_NEGATIVE_TEXT_REGEX.test(safeText)) return false;
+  return BODY_LINK_CTA_TEXT_REGEX.test(safeText);
+}
+
+function shouldKeepBodyLink(content, index, valueLength, url) {
+  const inlineContext = buildInlineContext(content, index, valueLength);
+  if (BODY_LINK_NEGATIVE_TEXT_REGEX.test(inlineContext)) return false;
+  if (looksLikeActionLink(url)) return true;
+  return hasBodyLinkContext(content, index, valueLength);
+}
+
+function buildRuleMatchOutput(rule, content, index, value) {
+  const context = buildMatchContext(content, index, value);
+  return {
+    rule_id: Number.isFinite(rule.id) ? Number(rule.id) : null,
+    rule_key: rule.key || null,
+    source: rule.source || "custom",
+    remark: rule.remark || null,
+    kind: rule.match_kind || "unknown",
+    value,
+    match: value,
+    before: context.before,
+    after: context.after
+  };
+}
+
+function extractContextualBodyCodeMatches(rule, contentByScope) {
+  const regex = rule?.compiled_regex;
+  if (!(regex instanceof RegExp)) return [];
+
+  const bodyContent = buildBodyOnlyCodeContent(contentByScope);
+  if (!bodyContent) return [];
+
+  const ranges = collectProtectedTokenRanges(bodyContent);
+  const seenValues = new Set();
+  const outputs = [];
+  const candidateRegex = getCachedRegex(regex.source, regex.flags.includes("g") ? regex.flags : `${regex.flags}g`);
+  if (!(candidateRegex instanceof RegExp)) return outputs;
+  candidateRegex.lastIndex = 0;
+  let match;
+
+  while ((match = candidateRegex.exec(bodyContent)) !== null && outputs.length < MAX_RULE_MATCHES_PER_RULE) {
+    const value = String(match[0] || "");
+    if (!value) {
+      candidateRegex.lastIndex += 1;
+      continue;
+    }
+
+    const start = Number(match.index || 0);
+    const end = start + value.length;
+    if (isProtectedTokenMatch(start, end, ranges)) continue;
+    if (!hasBodyCodeContext(bodyContent, start, value.length)) continue;
+    if (seenValues.has(value)) continue;
+
+    outputs.push(buildRuleMatchOutput(rule, bodyContent, start, value));
+    seenValues.add(value);
+  }
+
+  return outputs;
+}
+
+function extractContextualBodyLinkMatches(rule, contentByScope) {
+  const outputs = [];
+  const seenValues = new Set();
+  const rawHtml = String(contentByScope?.rawHtml || "").trim();
+  const bodyText = buildBodyTextContent(contentByScope);
+
+  const pushOutput = (content, index, value) => {
+    const normalizedValue = String(value || "").replace(/[).,;"'<>]+$/g, "").trim();
+    if (!normalizedValue || seenValues.has(normalizedValue) || outputs.length >= MAX_RULE_MATCHES_PER_RULE) return;
+    outputs.push(buildRuleMatchOutput(rule, content, index, normalizedValue));
+    seenValues.add(normalizedValue);
+  };
+
+  const anchorRegex = getCachedRegex(ANCHOR_LINK_REGEX.source, ANCHOR_LINK_REGEX.flags);
+  if (anchorRegex instanceof RegExp && rawHtml) {
+    anchorRegex.lastIndex = 0;
+    let match;
+    while ((match = anchorRegex.exec(rawHtml)) !== null && outputs.length < MAX_RULE_MATCHES_PER_RULE) {
+      const url = String(match[3] || "");
+      const innerText = stripHtml(match[5] || "");
+      const htmlStart = Number(match.index || 0);
+      const htmlSnippetStart = Math.max(0, htmlStart - BODY_LINK_CONTEXT_RADIUS);
+      const htmlSnippetEnd = Math.min(rawHtml.length, htmlStart + String(match[0] || "").length + BODY_LINK_CONTEXT_RADIUS);
+      const surroundingText = stripHtml(rawHtml.slice(htmlSnippetStart, htmlSnippetEnd));
+      const hasPositiveAnchorText = isPositiveCtaText(innerText);
+      const hasPositiveSurroundingText = hasBodyLinkContext(surroundingText, 0, surroundingText.length);
+      if (!hasPositiveAnchorText && !(looksLikeActionLink(url) && hasPositiveSurroundingText)) continue;
+      pushOutput(rawHtml, htmlStart + String(match[0] || "").indexOf(url), url);
+    }
+  }
+
+  const urlRegex = getCachedRegex(rule.pattern, "gm");
+  if (!(urlRegex instanceof RegExp) || !bodyText || outputs.length >= MAX_RULE_MATCHES_PER_RULE) return outputs;
+  urlRegex.lastIndex = 0;
+  let match;
+
+  while ((match = urlRegex.exec(bodyText)) !== null && outputs.length < MAX_RULE_MATCHES_PER_RULE) {
+    const value = String(match[0] || "");
+    if (!value) {
+      urlRegex.lastIndex += 1;
+      continue;
+    }
+    const start = Number(match.index || 0);
+    if (!shouldKeepBodyLink(bodyText, start, value.length, value)) continue;
+    pushOutput(bodyText, start, value);
+  }
+
+  return outputs;
+}
+
 function normalizeCustomRule(rule) {
   return {
     id: Number(rule.id),
@@ -347,7 +573,13 @@ function compileRule(rule) {
     compiled_regex: compiledRegex,
     compiled_sender_patterns: getCompiledPatternList(rule.sender_filter, "i"),
     match_kind: String(rule.match_kind || "unknown").trim().toLowerCase() || "unknown",
-    scopes: Array.isArray(rule.scopes) && rule.scopes.length > 0 ? [...rule.scopes] : ["subject", "text", "htmlText"]
+    scopes: Array.isArray(rule.scopes) && rule.scopes.length > 0 ? [...rule.scopes] : ["subject", "text", "htmlText"],
+    extractor:
+      rule.extractor_key === "contextual_body_code"
+        ? extractContextualBodyCodeMatches
+        : rule.extractor_key === "contextual_body_link"
+          ? extractContextualBodyLinkMatches
+        : null
   };
 }
 
@@ -382,12 +614,18 @@ function applyRules(contentByScope, sender, rules, options = {}) {
     if (rule.source === "builtin" && suppressedBuiltinKinds.has(rule.match_kind)) continue;
     if (!senderMatchesCompiled(senderValue, rule.compiled_sender_patterns)) continue;
     try {
+      if (typeof rule.extractor === "function") {
+        outputs.push(...rule.extractor(rule, contentByScope));
+        continue;
+      }
+
       const regex = rule.compiled_regex;
       if (!(regex instanceof RegExp)) continue;
       const safeContent = buildScopedMatchContent(contentByScope, rule.scopes, contentCache);
       if (!safeContent) continue;
       const seenValues = new Set();
       let captured = 0;
+      const isGlobal = regex.flags.includes("g");
       regex.lastIndex = 0;
 
       while (captured < MAX_RULE_MATCHES_PER_RULE) {
@@ -396,23 +634,12 @@ function applyRules(contentByScope, sender, rules, options = {}) {
 
         const value = String(match[0]);
         if (!seenValues.has(value)) {
-          const context = buildMatchContext(safeContent, Number(match.index || 0), value);
-          outputs.push({
-            rule_id: Number.isFinite(rule.id) ? Number(rule.id) : null,
-            rule_key: rule.key || null,
-            source: rule.source || "custom",
-            remark: rule.remark || null,
-            kind: rule.match_kind || "unknown",
-            value,
-            match: value,
-            before: context.before,
-            after: context.after
-          });
+          outputs.push(buildRuleMatchOutput(rule, safeContent, Number(match.index || 0), value));
           seenValues.add(value);
           captured += 1;
         }
 
-        if (!regexFlags.includes("g")) break;
+        if (!isGlobal) break;
         if (value.length === 0) regex.lastIndex += 1;
       }
     } catch {
