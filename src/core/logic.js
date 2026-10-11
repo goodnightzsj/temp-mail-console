@@ -50,13 +50,13 @@ const BUILTIN_RULES = [
     key: "builtin_digits",
     source: "builtin",
     remark: "数字",
-    pattern: "\\b\\d{4,8}\\b",
+    pattern: "\\b\\d{3,4}[-\\s]\\d{3,4}\\b|\\b\\d{4,8}\\b",
     flags: "gm",
     multiple: true,
     match_kind: "code",
     scopes: ["text", "htmlText"],
     extractor_key: "contextual_body_code",
-    description: "只从正文提取 4 到 8 位连续数字，并要求周围出现中英文验证码语义。"
+    description: "只从正文提取 4 到 8 位数字码，以及 `650-071` 这种 3+3 连字符分段码，并要求周围出现中英文验证码语义。"
   },
   {
     key: "builtin_alpha_numeric",
