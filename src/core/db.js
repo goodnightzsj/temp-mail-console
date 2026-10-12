@@ -86,27 +86,34 @@ function normalizeApiAddress(address) {
 
 function buildApiEmailQueryParts({ address, since = null, remark = null }) {
   const joins = [];
+  const joinParams = [];
   const filters = [];
-  const params = [];
+  const filterParams = [];
 
   joins.push("INNER JOIN email_recipients recipient_index ON recipient_index.message_id = e.message_id AND recipient_index.address = ?");
-  params.push(normalizeApiAddress(address));
-
-  if (Number.isFinite(since) && since >= 0) {
-    filters.push("e.received_at >= ?");
-    params.push(Math.floor(since));
-  }
+  joinParams.push(normalizeApiAddress(address));
 
   const normalizedRemark = String(remark || "").trim().toLowerCase();
   if (normalizedRemark) {
     joins.push("INNER JOIN email_match_remarks remark_index ON remark_index.message_id = e.message_id AND remark_index.remark = ?");
-    params.push(normalizedRemark);
+    joinParams.push(normalizedRemark);
   }
 
+  if (Number.isFinite(since) && since >= 0) {
+    filters.push("e.received_at >= ?");
+    filterParams.push(Math.floor(since));
+  }
+
+  // Bind order must follow the SQL text, not the order the clauses were built:
+  // every JOIN placeholder appears before any WHERE placeholder. Pushing `since`
+  // when it was parsed -- i.e. before `remark` -- shifted the two by one, so a
+  // remark lookup with a `since` bound the timestamp into the remark slot and
+  // answered 404 for mail that was there. Measured 2026-10-12: the same query
+  // returned 200 without `since` and 404 with it.
   return {
     fromClause: `FROM emails e\n    ${joins.join("\n    ")}`,
     whereClause: filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "",
-    params
+    params: [...joinParams, ...filterParams]
   };
 }
 
